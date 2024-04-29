@@ -12,9 +12,9 @@
 #define CONFIG_NVMEV_IO_WORKER_BY_SQ
 #undef CONFIG_NVMEV_FAST_X86_IRQ_HANDLING
 
-#undef CONFIG_NVMEV_VERBOSE
-#undef CONFIG_NVMEV_DEBUG
-#undef CONFIG_NVMEV_DEBUG_VERBOSE
+// #undef CONFIG_NVMEV_VERBOSE
+// #undef CONFIG_NVMEV_DEBUG
+// #undef CONFIG_NVMEV_DEBUG_VERBOSE
 
 /*************************/
 #define NVMEV_DRV_NAME "NVMeVirt"
@@ -27,9 +27,6 @@
 #define NVMEV_INFO(string, args...) printk(KERN_INFO "%s: " string, NVMEV_DRV_NAME, ##args)
 #define NVMEV_ERROR(string, args...) printk(KERN_ERR "%s: " string, NVMEV_DRV_NAME, ##args)
 #define NVMEV_ASSERT(x) BUG_ON((!(x)))
-
-#define CONFIG_NVMEV_DEBUG
-#define CONFIG_NVMEV_DEBUG_VERBOSE
 
 #ifdef CONFIG_NVMEV_DEBUG
 #define  NVMEV_DEBUG(string, args...) printk(KERN_INFO "%s{file: '%s', line: %d, func: '%s'}: " string, NVMEV_DRV_NAME, __FILE__, __LINE__, __func__, ##args)

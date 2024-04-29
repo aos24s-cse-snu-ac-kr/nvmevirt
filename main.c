@@ -111,6 +111,7 @@ module_param(cpus, charp, 0444);
 MODULE_PARM_DESC(cpus, "CPU list for process, completion(int.) threads, Seperated by Comma(,)");
 module_param(debug, uint, 0644);
 
+__attribute__((no_instrument_function))
 static void nvmev_proc_dbs(void)
 {
 	int qid;

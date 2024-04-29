@@ -72,6 +72,7 @@ static void __process_msi_irq(int msi_index)
 }
 #endif
 
+__attribute__((no_instrument_function))
 void nvmev_signal_irq(int msi_index)
 {
 	if (nvmev_vdev->pdev->msix_enabled) {
@@ -95,6 +96,7 @@ void nvmev_signal_irq(int msi_index)
  * Also, memory barrier is not necessary here since BAR-related
  * operations are only processed by the dispatcher.
  */
+__attribute__((no_instrument_function))
 void nvmev_proc_bars(void)
 {
 	volatile struct __nvme_bar *old_bar = nvmev_vdev->old_bar;

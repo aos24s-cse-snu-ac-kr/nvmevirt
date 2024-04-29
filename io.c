@@ -21,6 +21,7 @@ struct buffer;
 
 extern bool io_using_dma;
 
+__attribute__((no_instrument_function))
 static inline unsigned int __get_io_worker(int sqid)
 {
 #ifdef CONFIG_NVMEV_IO_WORKER_BY_SQ
@@ -30,6 +31,7 @@ static inline unsigned int __get_io_worker(int sqid)
 #endif
 }
 
+__attribute__((no_instrument_function))
 static inline unsigned long long __get_wallclock(void)
 {
 	return cpu_clock(nvmev_vdev->config.cpu_nr_dispatcher);

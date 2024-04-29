@@ -5,9 +5,10 @@ CONFIG_NVMEVIRT_SSD := y
 #CONFIG_NVMEVIRT_KV := y
 
 # Additional debug option
-CONFIG_NVMEV_VERBOSE := y
-CONFIG_NVMEV_DEBUG := y
-CONFIG_NVMEV_DEBUG_VERBOSE := y
+CONFIG_NVMEV_VERBOSE        := y
+CONFIG_NVMEV_DEBUG          := y
+CONFIG_NVMEV_DEBUG_VERBOSE  := y
+CONFIG_NVMEV_DEBUG_TRACE    := y
 
 obj-m   := nvmev.o
 nvmev-objs := main.o pci.o admin.o io.o dma.o
@@ -30,3 +31,6 @@ nvmev-$(CONFIG_NVMEVIRT_KV) += kv_ftl.o append_only.o bitmap.o
 ccflags-$(CONFIG_NVMEV_VERBOSE)         += -DCONFIG_NVMEV_VERBOSE
 ccflags-$(CONFIG_NVMEV_DEBUG)           += -DCONFIG_NVMEV_DEBUG
 ccflags-$(CONFIG_NVMEV_DEBUG_VERBOSE)   += -DCONFIG_NVMEV_DEBUG_VERBOSE
+
+ccflags-$(CONFIG_NVMEV_DEBUG_TRACE)     += -finstrument-functions
+nvmev-$(CONFIG_NVMEV_DEBUG_TRACE)       += debug.o

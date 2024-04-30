@@ -5,7 +5,7 @@
 #include "zns_ftl.h"
 
 static uint32_t __zmgmt_send_close_zone(struct zns_ftl *zns_ftl, uint64_t zid)
-{
+{ NVMEV_DEBUG_TRACE(&__zmgmt_send_close_zone);
 	struct zone_descriptor *zone_descs = zns_ftl->zone_descs;
 	enum zone_state cur_state = zone_descs[zid].state;
 	uint32_t status = NVME_SC_SUCCESS;
@@ -29,7 +29,7 @@ static uint32_t __zmgmt_send_close_zone(struct zns_ftl *zns_ftl, uint64_t zid)
 }
 
 static uint32_t __zmgmt_send_finish_zone(struct zns_ftl *zns_ftl, uint64_t zid)
-{
+{ NVMEV_DEBUG_TRACE(&__zmgmt_send_finish_zone);
 	struct zone_descriptor *zone_descs = zns_ftl->zone_descs;
 	enum zone_state cur_state = zone_descs[zid].state;
 	bool is_zrwa_zone = zone_descs[zid].zrwav;
@@ -64,7 +64,7 @@ static uint32_t __zmgmt_send_finish_zone(struct zns_ftl *zns_ftl, uint64_t zid)
 }
 
 static uint32_t __zmgmt_send_open_zone(struct zns_ftl *zns_ftl, uint64_t zid, uint32_t zrwa)
-{
+{ NVMEV_DEBUG_TRACE(&__zmgmt_send_open_zone);
 	struct zone_descriptor *zone_descs = zns_ftl->zone_descs;
 	enum zone_state cur_state = zone_descs[zid].state;
 	uint32_t status = NVME_SC_SUCCESS;
@@ -106,7 +106,7 @@ static uint32_t __zmgmt_send_open_zone(struct zns_ftl *zns_ftl, uint64_t zid, ui
 }
 
 static void __reset_zone(struct zns_ftl *zns_ftl, uint64_t zid)
-{
+{ NVMEV_DEBUG_TRACE(&__reset_zone);
 	struct zone_descriptor *zone_descs = zns_ftl->zone_descs;
 	uint32_t zone_size = zns_ftl->zp.zone_size;
 	uint8_t *zone_start_addr = (uint8_t *)get_storage_addr_from_zid(zns_ftl, zid);
@@ -124,7 +124,7 @@ static void __reset_zone(struct zns_ftl *zns_ftl, uint64_t zid)
 }
 
 static uint32_t __zmgmt_send_reset_zone(struct zns_ftl *zns_ftl, uint64_t zid)
-{
+{ NVMEV_DEBUG_TRACE(&__zmgmt_send_reset_zone);
 	struct zone_descriptor *zone_descs = zns_ftl->zone_descs;
 	enum zone_state cur_state = zone_descs[zid].state;
 	bool is_zrwa_zone = zone_descs[zid].zrwav;
@@ -156,7 +156,7 @@ static uint32_t __zmgmt_send_reset_zone(struct zns_ftl *zns_ftl, uint64_t zid)
 }
 
 static uint32_t __zmgmt_send_offline_zone(struct zns_ftl *zns_ftl, uint64_t zid)
-{
+{ NVMEV_DEBUG_TRACE(&__zmgmt_send_offline_zone);
 	enum zone_state cur_state = zns_ftl->zone_descs[zid].state;
 	uint32_t status = NVME_SC_SUCCESS;
 
@@ -175,7 +175,7 @@ static uint32_t __zmgmt_send_offline_zone(struct zns_ftl *zns_ftl, uint64_t zid)
 }
 
 static uint32_t __zmgmt_send_flush_explicit_zrwa(struct zns_ftl *zns_ftl, uint64_t slba)
-{
+{ NVMEV_DEBUG_TRACE(&__zmgmt_send_flush_explicit_zrwa);
 	struct zone_descriptor *zone_descs = zns_ftl->zone_descs;
 	uint64_t zid = lba_to_zone(zns_ftl, slba);
 	uint64_t wp = zone_descs[zid].wp;
@@ -258,7 +258,7 @@ static uint32_t __zmgmt_send(struct zns_ftl *zns_ftl, uint64_t slba, uint32_t ac
 }
 
 void zns_zmgmt_send(struct nvmev_ns *ns, struct nvmev_request *req, struct nvmev_result *ret)
-{
+{ NVMEV_DEBUG_TRACE(&zns_zmgmt_send);
 	struct zns_ftl *zns_ftl = (struct zns_ftl *)ns->ftls;
 	struct nvme_zone_mgmt_send *cmd = (struct nvme_zone_mgmt_send *)req->cmd;
 	uint32_t select_all = cmd->select_all;

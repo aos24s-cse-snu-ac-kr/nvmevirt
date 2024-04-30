@@ -17,7 +17,7 @@ static unsigned long long dev_size;
 static unsigned long long total_written;
 
 static void bits_print(unsigned long *v, u32 nbits)
-{
+{ NVMEV_DEBUG_TRACE(&bits_print);
 	s32 i;
 	u32 wc = BIT_WORD(nbits);
 	u64 mask1, mask2 = BIT(BITS_PER_TYPE(long) - 1);
@@ -36,7 +36,7 @@ static void bits_print(unsigned long *v, u32 nbits)
 }
 
 int bitmap_allocator_init(u64 size)
-{
+{ NVMEV_DEBUG_TRACE(&bitmap_allocator_init);
 	dev_size = size;
 
 	small_nbits = size / 2 / SMALL_LENGTH;
@@ -56,7 +56,7 @@ int bitmap_allocator_init(u64 size)
 }
 
 size_t bitmap_allocate(u64 length, void *args)
-{
+{ NVMEV_DEBUG_TRACE(&bitmap_allocate);
 	size_t off;
 	size_t calculated_offset;
 
@@ -108,5 +108,5 @@ size_t bitmap_allocate(u64 length, void *args)
 }
 
 void bitmap_kill(void)
-{
+{ NVMEV_DEBUG_TRACE(&bitmap_kill);
 }

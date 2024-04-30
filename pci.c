@@ -14,7 +14,7 @@
 static int apicid_to_cpuid[256];
 
 static void __init_apicid_to_cpuid(void)
-{
+{ NVMEV_DEBUG_TRACE(&__init_apicid_to_cpuid);
 	int i;
 	for_each_possible_cpu(i) {
 		apicid_to_cpuid[per_cpu(x86_cpu_to_apicid, i)] = i;
@@ -22,7 +22,7 @@ static void __init_apicid_to_cpuid(void)
 }
 
 static void __signal_irq(const char *type, unsigned int irq)
-{
+{ NVMEV_DEBUG_TRACE(&__signal_irq);
 	struct irq_data *irqd = irq_get_irq_data(irq);
 	struct irq_cfg *irqc = irqd_cfg(irqd);
 
@@ -36,7 +36,7 @@ static void __signal_irq(const char *type, unsigned int irq)
 }
 #else
 static void __signal_irq(const char *type, unsigned int irq)
-{
+{ NVMEV_DEBUG_TRACE(&__signal_irq);
 	struct irq_data *data = irq_get_irq_data(irq);
 	struct irq_chip *chip = irq_data_get_irq_chip(data);
 
@@ -50,7 +50,7 @@ static void __signal_irq(const char *type, unsigned int irq)
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 17, 0)
 static void __process_msi_irq(int msi_index)
-{
+{ NVMEV_DEBUG_TRACE(&__process_msi_irq);
 	unsigned int virq = msi_get_virq(&nvmev_vdev->pdev->dev, msi_index);
 
 	BUG_ON(virq == 0);
@@ -58,7 +58,7 @@ static void __process_msi_irq(int msi_index)
 }
 #else
 static void __process_msi_irq(int msi_index)
-{
+{ NVMEV_DEBUG_TRACE(&__process_msi_irq);
 	struct msi_desc *msi_desc, *tmp;
 
 	for_each_msi_entry_safe(msi_desc, tmp, (&nvmev_vdev->pdev->dev)) {
@@ -74,7 +74,7 @@ static void __process_msi_irq(int msi_index)
 
 __attribute__((no_instrument_function))
 void nvmev_signal_irq(int msi_index)
-{
+{ /* NVMEV_DEBUG_TRACE(&nvmev_signal_irq); */
 	if (nvmev_vdev->pdev->msix_enabled) {
 		__process_msi_irq(msi_index);
 	} else {
@@ -98,7 +98,7 @@ void nvmev_signal_irq(int msi_index)
  */
 __attribute__((no_instrument_function))
 void nvmev_proc_bars(void)
-{
+{ /* NVMEV_DEBUG_TRACE(&nvmev_proc_bars); */
 	volatile struct __nvme_bar *old_bar = nvmev_vdev->old_bar;
 	volatile struct nvme_ctrl_regs *bar = nvmev_vdev->bar;
 	struct nvmev_admin_queue *queue = nvmev_vdev->admin_q;
@@ -260,7 +260,7 @@ out:
 }
 
 static int nvmev_pci_read(struct pci_bus *bus, unsigned int devfn, int where, int size, u32 *val)
-{
+{ NVMEV_DEBUG_TRACE(&nvmev_pci_read);
 	if (devfn != 0)
 		return 1;
 
@@ -272,7 +272,7 @@ static int nvmev_pci_read(struct pci_bus *bus, unsigned int devfn, int where, in
 };
 
 static int nvmev_pci_write(struct pci_bus *bus, unsigned int devfn, int where, int size, u32 _val)
-{
+{ NVMEV_DEBUG_TRACE(&nvmev_pci_write);
 	u32 mask = ~(0U);
 	u32 val = 0x00;
 	int target = where;
@@ -343,7 +343,7 @@ static struct pci_sysdata nvmev_pci_sysdata = {
 
 
 static void __dump_pci_dev(struct pci_dev *dev)
-{
+{ NVMEV_DEBUG_TRACE(&__dump_pci_dev);
 	/*
 	NVMEV_DEBUG("bus: %p, subordinate: %p\n", dev->bus, dev->subordinate);
 	NVMEV_DEBUG("vendor: %x, device: %x\n", dev->vendor, dev->device);
@@ -357,7 +357,7 @@ static void __dump_pci_dev(struct pci_dev *dev)
 }
 
 static void __init_nvme_ctrl_regs(struct pci_dev *dev)
-{
+{ NVMEV_DEBUG_TRACE(&__init_nvme_ctrl_regs);
 	struct nvme_ctrl_regs *bar = memremap(pci_resource_start(dev, 0), PAGE_SIZE * 2, MEMREMAP_WT);
 	BUG_ON(!bar);
 

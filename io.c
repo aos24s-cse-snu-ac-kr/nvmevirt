@@ -23,7 +23,7 @@ extern bool io_using_dma;
 
 __attribute__((no_instrument_function))
 static inline unsigned int __get_io_worker(int sqid)
-{
+{ /* NVMEV_DEBUG_TRACE(&__get_io_worker); */
 #ifdef CONFIG_NVMEV_IO_WORKER_BY_SQ
 	return (sqid - 1) % nvmev_vdev->config.nr_io_workers;
 #else
@@ -33,22 +33,22 @@ static inline unsigned int __get_io_worker(int sqid)
 
 __attribute__((no_instrument_function))
 static inline unsigned long long __get_wallclock(void)
-{
+{ /* NVMEV_DEBUG_TRACE(&__get_wallclock); */
 	return cpu_clock(nvmev_vdev->config.cpu_nr_dispatcher);
 }
 
 static inline size_t __cmd_io_offset(struct nvme_rw_command *cmd)
-{
+{ NVMEV_DEBUG_TRACE(&__cmd_io_offset);
 	return (cmd->slba) << LBA_BITS;
 }
 
 static inline size_t __cmd_io_size(struct nvme_rw_command *cmd)
-{
+{ NVMEV_DEBUG_TRACE(&__cmd_io_size);
 	return (cmd->length + 1) << LBA_BITS;
 }
 
 static unsigned int __do_perform_io(int sqid, int sq_entry)
-{
+{ NVMEV_DEBUG_TRACE(&__do_perform_io);
 	struct nvmev_submission_queue *sq = nvmev_vdev->sqes[sqid];
 	struct nvme_rw_command *cmd = &sq_entry(sq_entry).rw;
 	size_t offset;
@@ -115,7 +115,7 @@ static u64 paddr_list[513] = {
 	0,
 }; // Not using index 0 to make max index == num_prp
 static unsigned int __do_perform_io_using_dma(int sqid, int sq_entry)
-{
+{ NVMEV_DEBUG_TRACE(&__do_perform_io_using_dma);
 	struct nvmev_submission_queue *sq = nvmev_vdev->sqes[sqid];
 	struct nvme_rw_command *cmd = &sq_entry(sq_entry).rw;
 	size_t offset;
@@ -351,7 +351,7 @@ void schedule_internal_operation(int sqid, unsigned long long nsecs_target,
 }
 
 static void __reclaim_completed_reqs(void)
-{
+{ NVMEV_DEBUG_TRACE(&__reclaim_completed_reqs);
 	unsigned int turn;
 
 	for (turn = 0; turn < nvmev_vdev->config.nr_io_workers; turn++) {
@@ -402,7 +402,7 @@ static void __reclaim_completed_reqs(void)
 }
 
 static size_t __nvmev_proc_io(int sqid, int sq_entry, size_t *io_size)
-{
+{ NVMEV_DEBUG_TRACE(&__nvmev_proc_io);
 	struct nvmev_submission_queue *sq = nvmev_vdev->sqes[sqid];
 	unsigned long long nsecs_start = __get_wallclock();
 	struct nvme_command *cmd = &sq_entry(sq_entry);
@@ -471,7 +471,7 @@ static size_t __nvmev_proc_io(int sqid, int sq_entry, size_t *io_size)
 }
 
 int nvmev_proc_io_sq(int sqid, int new_db, int old_db)
-{
+{ NVMEV_DEBUG_TRACE(&nvmev_proc_io_sq);
 	struct nvmev_submission_queue *sq = nvmev_vdev->sqes[sqid];
 	int num_proc = new_db - old_db;
 	int seq;
@@ -503,7 +503,7 @@ int nvmev_proc_io_sq(int sqid, int new_db, int old_db)
 }
 
 void nvmev_proc_io_cq(int cqid, int new_db, int old_db)
-{
+{ NVMEV_DEBUG_TRACE(&nvmev_proc_io_cq);
 	struct nvmev_completion_queue *cq = nvmev_vdev->cqes[cqid];
 	int i;
 	for (i = old_db; i != new_db; i++) {
@@ -526,7 +526,7 @@ void nvmev_proc_io_cq(int cqid, int new_db, int old_db)
 }
 
 static void __fill_cq_result(struct nvmev_io_work *w)
-{
+{ NVMEV_DEBUG_TRACE(&__fill_cq_result);
 	int sqid = w->sqid;
 	int cqid = w->cqid;
 	int sq_entry = w->sq_entry;
@@ -558,7 +558,7 @@ static void __fill_cq_result(struct nvmev_io_work *w)
 }
 
 static int nvmev_io_worker(void *data)
-{
+{ NVMEV_DEBUG_TRACE(&nvmev_io_worker);
 	struct nvmev_io_worker *worker = (struct nvmev_io_worker *)data;
 	struct nvmev_ns *ns;
 

@@ -7,19 +7,19 @@
 #include "ssd.h"
 
 static inline uint64_t __get_ioclock(struct ssd *ssd)
-{
+{ NVMEV_DEBUG_TRACE(&__get_ioclock);
 	return cpu_clock(ssd->cpu_nr_dispatcher);
 }
 
 void buffer_init(struct buffer *buf, size_t size)
-{
+{ NVMEV_DEBUG_TRACE(&buffer_init);
 	spin_lock_init(&buf->lock);
 	buf->size = size;
 	buf->remaining = size;
 }
 
 uint32_t buffer_allocate(struct buffer *buf, size_t size)
-{
+{ NVMEV_DEBUG_TRACE(&buffer_allocate);
 	while (!spin_trylock(&buf->lock)) {
 		cpu_relax();
 	}
@@ -35,7 +35,7 @@ uint32_t buffer_allocate(struct buffer *buf, size_t size)
 }
 
 bool buffer_release(struct buffer *buf, size_t size)
-{
+{ NVMEV_DEBUG_TRACE(&buffer_release);
 	while (!spin_trylock(&buf->lock))
 		;
 	buf->remaining += size;
@@ -45,7 +45,7 @@ bool buffer_release(struct buffer *buf, size_t size)
 }
 
 void buffer_refill(struct buffer *buf)
-{
+{ NVMEV_DEBUG_TRACE(&buffer_refill);
 	while (!spin_trylock(&buf->lock))
 		;
 	buf->remaining = buf->size;
@@ -53,7 +53,7 @@ void buffer_refill(struct buffer *buf)
 }
 
 static void check_params(struct ssdparams *spp)
-{
+{ NVMEV_DEBUG_TRACE(&check_params);
 	/*
      * we are using a general write pointer increment method now, no need to
      * force luns_per_ch and nchs to be power of 2
@@ -64,7 +64,7 @@ static void check_params(struct ssdparams *spp)
 }
 
 void ssd_init_params(struct ssdparams *spp, uint64_t capacity, uint32_t nparts)
-{
+{ NVMEV_DEBUG_TRACE(&ssd_init_params);
 	uint64_t blk_size, total_size;
 
 	spp->secsz = LBA_SIZE;
@@ -170,7 +170,7 @@ void ssd_init_params(struct ssdparams *spp, uint64_t capacity, uint32_t nparts)
 }
 
 static void ssd_init_nand_page(struct nand_page *pg, struct ssdparams *spp)
-{
+{ NVMEV_DEBUG_TRACE(&ssd_init_nand_page);
 	int i;
 	pg->nsecs = spp->secs_per_pg;
 	pg->sec = kmalloc(sizeof(nand_sec_status_t) * pg->nsecs, GFP_KERNEL);
@@ -181,12 +181,12 @@ static void ssd_init_nand_page(struct nand_page *pg, struct ssdparams *spp)
 }
 
 static void ssd_remove_nand_page(struct nand_page *pg)
-{
+{ NVMEV_DEBUG_TRACE(&ssd_remove_nand_page);
 	kfree(pg->sec);
 }
 
 static void ssd_init_nand_blk(struct nand_block *blk, struct ssdparams *spp)
-{
+{ NVMEV_DEBUG_TRACE(&ssd_init_nand_blk);
 	int i;
 	blk->npgs = spp->pgs_per_blk;
 	blk->pg = kmalloc(sizeof(struct nand_page) * blk->npgs, GFP_KERNEL);
@@ -200,7 +200,7 @@ static void ssd_init_nand_blk(struct nand_block *blk, struct ssdparams *spp)
 }
 
 static void ssd_remove_nand_blk(struct nand_block *blk)
-{
+{ NVMEV_DEBUG_TRACE(&ssd_remove_nand_blk);
 	int i;
 
 	for (i = 0; i < blk->npgs; i++)
@@ -210,7 +210,7 @@ static void ssd_remove_nand_blk(struct nand_block *blk)
 }
 
 static void ssd_init_nand_plane(struct nand_plane *pl, struct ssdparams *spp)
-{
+{ NVMEV_DEBUG_TRACE(&ssd_init_nand_plane);
 	int i;
 	pl->nblks = spp->blks_per_pl;
 	pl->blk = kmalloc(sizeof(struct nand_block) * pl->nblks, GFP_KERNEL);
@@ -220,7 +220,7 @@ static void ssd_init_nand_plane(struct nand_plane *pl, struct ssdparams *spp)
 }
 
 static void ssd_remove_nand_plane(struct nand_plane *pl)
-{
+{ NVMEV_DEBUG_TRACE(&ssd_remove_nand_plane);
 	int i;
 
 	for (i = 0; i < pl->nblks; i++)
@@ -230,7 +230,7 @@ static void ssd_remove_nand_plane(struct nand_plane *pl)
 }
 
 static void ssd_init_nand_lun(struct nand_lun *lun, struct ssdparams *spp)
-{
+{ NVMEV_DEBUG_TRACE(&ssd_init_nand_lun);
 	int i;
 	lun->npls = spp->pls_per_lun;
 	lun->pl = kmalloc(sizeof(struct nand_plane) * lun->npls, GFP_KERNEL);
@@ -242,7 +242,7 @@ static void ssd_init_nand_lun(struct nand_lun *lun, struct ssdparams *spp)
 }
 
 static void ssd_remove_nand_lun(struct nand_lun *lun)
-{
+{ NVMEV_DEBUG_TRACE(&ssd_remove_nand_lun);
 	int i;
 
 	for (i = 0; i < lun->npls; i++)
@@ -252,7 +252,7 @@ static void ssd_remove_nand_lun(struct nand_lun *lun)
 }
 
 static void ssd_init_ch(struct ssd_channel *ch, struct ssdparams *spp)
-{
+{ NVMEV_DEBUG_TRACE(&ssd_init_ch);
 	int i;
 	ch->nluns = spp->luns_per_ch;
 	ch->lun = kmalloc(sizeof(struct nand_lun) * ch->nluns, GFP_KERNEL);
@@ -268,7 +268,7 @@ static void ssd_init_ch(struct ssd_channel *ch, struct ssdparams *spp)
 }
 
 static void ssd_remove_ch(struct ssd_channel *ch)
-{
+{ NVMEV_DEBUG_TRACE(&ssd_remove_ch);
 	int i;
 
 	kfree(ch->perf_model);
@@ -280,18 +280,18 @@ static void ssd_remove_ch(struct ssd_channel *ch)
 }
 
 static void ssd_init_pcie(struct ssd_pcie *pcie, struct ssdparams *spp)
-{
+{ NVMEV_DEBUG_TRACE(&ssd_init_pcie);
 	pcie->perf_model = kmalloc(sizeof(struct channel_model), GFP_KERNEL);
 	chmodel_init(pcie->perf_model, spp->pcie_bandwidth);
 }
 
 static void ssd_remove_pcie(struct ssd_pcie *pcie)
-{
+{ NVMEV_DEBUG_TRACE(&ssd_remove_pcie);
 	kfree(pcie->perf_model);
 }
 
 void ssd_init(struct ssd *ssd, struct ssdparams *spp, uint32_t cpu_nr_dispatcher)
-{
+{ NVMEV_DEBUG_TRACE(&ssd_init);
 	uint32_t i;
 	/* copy spp */
 	ssd->sp = *spp;
@@ -315,7 +315,7 @@ void ssd_init(struct ssd *ssd, struct ssdparams *spp, uint32_t cpu_nr_dispatcher
 }
 
 void ssd_remove(struct ssd *ssd)
-{
+{ NVMEV_DEBUG_TRACE(&ssd_remove);
 	uint32_t i;
 
 	kfree(ssd->write_buffer);
@@ -332,7 +332,7 @@ void ssd_remove(struct ssd *ssd)
 }
 
 uint64_t ssd_advance_pcie(struct ssd *ssd, uint64_t request_time, uint64_t length)
-{
+{ NVMEV_DEBUG_TRACE(&ssd_advance_pcie);
 	struct channel_model *perf_model = ssd->pcie->perf_model;
 	return chmodel_request(perf_model, request_time, length);
 }
@@ -345,7 +345,7 @@ uint64_t ssd_advance_pcie(struct ssd *ssd, uint64_t request_time, uint64_t lengt
   B : fw_wbuf_lat1 + pcie dma transfer
 */
 uint64_t ssd_advance_write_buffer(struct ssd *ssd, uint64_t request_time, uint64_t length)
-{
+{ NVMEV_DEBUG_TRACE(&ssd_advance_write_buffer);
 	uint64_t nsecs_latest = request_time;
 	struct ssdparams *spp = &ssd->sp;
 
@@ -358,7 +358,7 @@ uint64_t ssd_advance_write_buffer(struct ssd *ssd, uint64_t request_time, uint64
 }
 
 uint64_t ssd_advance_nand(struct ssd *ssd, struct nand_cmd *ncmd)
-{
+{ NVMEV_DEBUG_TRACE(&ssd_advance_nand);
 	int c = ncmd->cmd;
 	uint64_t cmd_stime = (ncmd->stime == 0) ? __get_ioclock(ssd) : ncmd->stime;
 	uint64_t nand_stime, nand_etime;
@@ -452,7 +452,7 @@ uint64_t ssd_advance_nand(struct ssd *ssd, struct nand_cmd *ncmd)
 }
 
 uint64_t ssd_next_idle_time(struct ssd *ssd)
-{
+{ NVMEV_DEBUG_TRACE(&ssd_next_idle_time);
 	struct ssdparams *spp = &ssd->sp;
 	uint32_t i, j;
 	uint64_t latest = __get_ioclock(ssd);
@@ -470,7 +470,7 @@ uint64_t ssd_next_idle_time(struct ssd *ssd)
 }
 
 void adjust_ftl_latency(int target, int lat)
-{
+{ NVMEV_DEBUG_TRACE(&adjust_ftl_latency);
 /* TODO ..*/
 #if 0
     struct ssdparams *spp;

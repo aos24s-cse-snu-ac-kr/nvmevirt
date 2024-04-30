@@ -14,7 +14,7 @@
 #define prp_address(prp) prp_address_offset(prp, 0)
 
 static void __make_cq_entry_results(int eid, u16 ret, u32 result0, u32 result1)
-{
+{ NVMEV_DEBUG_TRACE(&__make_cq_entry_results);
 	struct nvmev_admin_queue *queue = nvmev_vdev->admin_q;
 	struct nvme_common_command *cmd = &sq_entry(eid).common;
 	int cq_head = queue->cq_head;
@@ -36,7 +36,7 @@ static void __make_cq_entry_results(int eid, u16 ret, u32 result0, u32 result1)
 }
 
 static void __make_cq_entry(int eid, u16 ret)
-{
+{ NVMEV_DEBUG_TRACE(&__make_cq_entry);
 	__make_cq_entry_results(eid, ret, 0, 0);
 }
 
@@ -45,7 +45,7 @@ static void __make_cq_entry(int eid, u16 ret)
  * Queue managements
  */
 static void __nvmev_admin_create_cq(int eid)
-{
+{ NVMEV_DEBUG_TRACE(&__nvmev_admin_create_cq);
 	struct nvmev_admin_queue *queue = nvmev_vdev->admin_q;
 	struct nvmev_completion_queue *cq;
 	struct nvme_create_cq *cmd = &sq_entry(eid).create_cq;
@@ -90,7 +90,7 @@ static void __nvmev_admin_create_cq(int eid)
 }
 
 static void __nvmev_admin_delete_cq(int eid)
-{
+{ NVMEV_DEBUG_TRACE(&__nvmev_admin_delete_cq);
 	struct nvmev_admin_queue *queue = nvmev_vdev->admin_q;
 	struct nvmev_completion_queue *cq;
 	unsigned int qid;
@@ -109,7 +109,7 @@ static void __nvmev_admin_delete_cq(int eid)
 }
 
 static void __nvmev_admin_create_sq(int eid)
-{
+{ NVMEV_DEBUG_TRACE(&__nvmev_admin_create_sq);
 	struct nvmev_admin_queue *queue = nvmev_vdev->admin_q;
 	struct nvme_create_sq *cmd = &sq_entry(eid).create_sq;
 	struct nvmev_submission_queue *sq;
@@ -144,7 +144,7 @@ static void __nvmev_admin_create_sq(int eid)
 }
 
 static void __nvmev_admin_delete_sq(int eid)
-{
+{ NVMEV_DEBUG_TRACE(&__nvmev_admin_delete_sq);
 	struct nvmev_admin_queue *queue = nvmev_vdev->admin_q;
 	struct nvme_delete_queue *cmd = &sq_entry(eid).delete_queue;
 	struct nvmev_submission_queue *sq;
@@ -168,7 +168,7 @@ static void __nvmev_admin_delete_sq(int eid)
  * Log pages
  */
 static void __nvmev_admin_get_log_page(int eid)
-{
+{ NVMEV_DEBUG_TRACE(&__nvmev_admin_get_log_page);
 	struct nvmev_admin_queue *queue = nvmev_vdev->admin_q;
 	struct nvme_get_log_page_command *cmd = &sq_entry(eid).get_log_page;
 	void *page;
@@ -246,7 +246,7 @@ static void __nvmev_admin_get_log_page(int eid)
  * Identify functions
  */
 static void __nvmev_admin_identify_namespace(int eid)
-{
+{ NVMEV_DEBUG_TRACE(&__nvmev_admin_identify_namespace);
 	struct nvmev_admin_queue *queue = nvmev_vdev->admin_q;
 	struct nvme_id_ns *ns;
 	struct nvme_identify *cmd = &sq_entry(eid).identify;
@@ -302,7 +302,7 @@ static void __nvmev_admin_identify_namespace(int eid)
 }
 
 static void __nvmev_admin_identify_namespaces(int eid)
-{
+{ NVMEV_DEBUG_TRACE(&__nvmev_admin_identify_namespaces);
 	struct nvmev_admin_queue *queue = nvmev_vdev->admin_q;
 	struct nvme_identify *cmd = &sq_entry(eid).identify;
 	unsigned int *ns;
@@ -322,7 +322,7 @@ static void __nvmev_admin_identify_namespaces(int eid)
 }
 
 static void __nvmev_admin_identify_namespace_desc(int eid)
-{
+{ NVMEV_DEBUG_TRACE(&__nvmev_admin_identify_namespace_desc);
 	struct nvmev_admin_queue *queue = nvmev_vdev->admin_q;
 	struct nvme_identify *cmd = &sq_entry(eid).identify;
 	struct nvme_id_ns_desc *ns_desc;
@@ -340,7 +340,7 @@ static void __nvmev_admin_identify_namespace_desc(int eid)
 }
 
 static void __nvmev_admin_identify_zns_namespace(int eid)
-{
+{ NVMEV_DEBUG_TRACE(&__nvmev_admin_identify_zns_namespace);
 	struct nvmev_admin_queue *queue = nvmev_vdev->admin_q;
 	struct nvme_identify *cmd = &sq_entry(eid).identify;
 	struct nvme_id_zns_ns *ns;
@@ -386,7 +386,7 @@ static void __nvmev_admin_identify_zns_namespace(int eid)
 }
 
 static void __nvmev_admin_identify_zns_ctrl(int eid)
-{
+{ NVMEV_DEBUG_TRACE(&__nvmev_admin_identify_zns_ctrl);
 	struct nvmev_admin_queue *queue = nvmev_vdev->admin_q;
 	struct nvme_identify *cmd = &sq_entry(eid).identify;
 	struct nvme_id_zns_ctrl *res;
@@ -399,7 +399,7 @@ static void __nvmev_admin_identify_zns_ctrl(int eid)
 }
 
 static void __nvmev_admin_identify_ctrl(int eid)
-{
+{ NVMEV_DEBUG_TRACE(&__nvmev_admin_identify_ctrl);
 	struct nvmev_admin_queue *queue = nvmev_vdev->admin_q;
 	struct nvme_identify *cmd = &sq_entry(eid).identify;
 	struct nvme_id_ctrl *ctrl;
@@ -422,7 +422,7 @@ static void __nvmev_admin_identify_ctrl(int eid)
 }
 
 static void __nvmev_admin_identify(int eid)
-{
+{ NVMEV_DEBUG_TRACE(&__nvmev_admin_identify);
 	struct nvmev_admin_queue *queue = nvmev_vdev->admin_q;
 	int cns = sq_entry(eid).identify.cns;
 
@@ -456,7 +456,7 @@ static void __nvmev_admin_identify(int eid)
  * Set/get features
  */
 static void __nvmev_admin_set_features(int eid)
-{
+{ NVMEV_DEBUG_TRACE(&__nvmev_admin_set_features);
 	struct nvmev_admin_queue *queue = nvmev_vdev->admin_q;
 	struct nvme_features *cmd = &sq_entry(eid).features;
 	__le32 result0 = 0;
@@ -501,7 +501,7 @@ static void __nvmev_admin_set_features(int eid)
 }
 
 static void __nvmev_admin_get_features(int eid)
-{
+{ NVMEV_DEBUG_TRACE(&__nvmev_admin_get_features);
 	struct nvmev_admin_queue *queue = nvmev_vdev->admin_q;
 	struct nvme_features *cmd = &sq_entry(eid).features;
 	__le32 result0 = 0;
@@ -539,14 +539,14 @@ static void __nvmev_admin_get_features(int eid)
  * Misc
  */
 static void __nvmev_admin_async_event(int eid)
-{
+{ NVMEV_DEBUG_TRACE(&__nvmev_admin_async_event);
 	__make_cq_entry(eid, NVME_SC_SUCCESS);
 	// __make_cq_entry(eid, NVME_SC_ASYNC_LIMIT);
 }
 
 
 static void __nvmev_proc_admin_req(int entry_id)
-{
+{ NVMEV_DEBUG_TRACE(&__nvmev_proc_admin_req);
 	struct nvmev_admin_queue *queue = nvmev_vdev->admin_q;
 	struct nvme_command *sqe = &sq_entry(entry_id);
 
@@ -596,7 +596,7 @@ static void __nvmev_proc_admin_req(int entry_id)
 }
 
 void nvmev_proc_admin_sq(int new_db, int old_db)
-{
+{ NVMEV_DEBUG_TRACE(&nvmev_proc_admin_sq);
 	struct nvmev_admin_queue *queue = nvmev_vdev->admin_q;
 	int num_proc = new_db - old_db;
 	int curr = old_db;
@@ -617,5 +617,5 @@ void nvmev_proc_admin_sq(int new_db, int old_db)
 }
 
 void nvmev_proc_admin_cq(int new_db, int old_db)
-{
+{ NVMEV_DEBUG_TRACE(&nvmev_proc_admin_cq);
 }

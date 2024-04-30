@@ -76,7 +76,7 @@ static unsigned int debug = 0;
 int io_using_dma = false;
 
 static int set_parse_mem_param(const char *val, const struct kernel_param *kp)
-{
+{ NVMEV_DEBUG_TRACE(&set_parse_mem_param);
 	unsigned long *arg = (unsigned long *)kp->arg;
 	*arg = memparse(val, NULL);
 	return 0;
@@ -113,7 +113,7 @@ module_param(debug, uint, 0644);
 
 __attribute__((no_instrument_function))
 static void nvmev_proc_dbs(void)
-{
+{ /* NVMEV_DEBUG_TRACE(&nvmev_proc_dbs); */
 	int qid;
 	int dbs_idx;
 	int new_db;
@@ -158,7 +158,7 @@ static void nvmev_proc_dbs(void)
 }
 
 static int nvmev_dispatcher(void *data)
-{
+{ NVMEV_DEBUG_TRACE(&nvmev_dispatcher);
 	NVMEV_INFO("nvmev_dispatcher started on cpu %d (node %d)\n",
 		   nvmev_vdev->config.cpu_nr_dispatcher,
 		   cpu_to_node(nvmev_vdev->config.cpu_nr_dispatcher));
@@ -191,7 +191,7 @@ static void NVMEV_DISPATCHER_FINAL(struct nvmev_dev *nvmev_vdev)
 
 #ifdef CONFIG_X86
 static int __validate_configs_arch(void)
-{
+{ NVMEV_DEBUG_TRACE(&__validate_configs_arch);
 	unsigned long resv_start_bytes;
 	unsigned long resv_end_bytes;
 
@@ -214,14 +214,14 @@ static int __validate_configs_arch(void)
 }
 #else
 static int __validate_configs_arch(void)
-{
+{ NVMEV_DEBUG_TRACE(&__validate_configs_arch);
 	/* TODO: Validate architecture-specific configurations */
 	return 0;
 }
 #endif
 
 static int __validate_configs(void)
-{
+{ NVMEV_DEBUG_TRACE(&__validate_configs);
 	if (!memmap_start) {
 		NVMEV_ERROR("[memmap_start] should be specified\n");
 		return -EINVAL;
@@ -256,7 +256,7 @@ static int __validate_configs(void)
 }
 
 static void __print_perf_configs(void)
-{
+{ NVMEV_DEBUG_TRACE(&__print_perf_configs);
 #ifdef CONFIG_NVMEV_VERBOSE
 	unsigned long unit_perf_kb =
 			nvmev_vdev->config.nr_io_units << (nvmev_vdev->config.io_unit_shift - 10);
@@ -279,7 +279,7 @@ static void __print_perf_configs(void)
 }
 
 static int __get_nr_entries(int dbs_idx, int queue_size)
-{
+{ NVMEV_DEBUG_TRACE(&__get_nr_entries);
 	int diff = nvmev_vdev->dbs[dbs_idx] - nvmev_vdev->old_dbs[dbs_idx];
 	if (diff < 0) {
 		diff += queue_size;
@@ -288,7 +288,7 @@ static int __get_nr_entries(int dbs_idx, int queue_size)
 }
 
 static int __proc_file_read(struct seq_file *m, void *data)
-{
+{ NVMEV_DEBUG_TRACE(&__proc_file_read);
 	const char *filename = m->private;
 	struct nvmev_config *cfg = &nvmev_vdev->config;
 
@@ -387,7 +387,7 @@ out:
 }
 
 static int __proc_file_open(struct inode *inode, struct file *file)
-{
+{ NVMEV_DEBUG_TRACE(&__proc_file_open);
 	return single_open(file, __proc_file_read, (char *)file->f_path.dentry->d_name.name);
 }
 
@@ -454,7 +454,7 @@ static void NVMEV_STORAGE_FINAL(struct nvmev_dev *nvmev_vdev)
 }
 
 static bool __load_configs(struct nvmev_config *config)
-{
+{ NVMEV_DEBUG_TRACE(&__load_configs);
 	bool first = true;
 	unsigned int cpu_nr;
 	char *cpu;
@@ -561,7 +561,7 @@ static void NVMEV_NAMESPACE_FINAL(struct nvmev_dev *nvmev_vdev)
 }
 
 static void __print_base_config(void)
-{
+{ NVMEV_DEBUG_TRACE(&__print_base_config);
 	const char *type = "unknown";
 	switch (BASE_SSD) {
 	case INTEL_OPTANE:

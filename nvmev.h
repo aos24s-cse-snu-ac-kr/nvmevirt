@@ -295,6 +295,7 @@ void VDEV_FINALIZE(struct nvmev_dev *nvmev_vdev);
 void nvmev_proc_bars(void);
 bool NVMEV_PCI_INIT(struct nvmev_dev *dev);
 void nvmev_signal_irq(int msi_index);
+void nvmev_signal_irq_muted(int msi_index);
 
 // OPS ADMIN QUEUE
 void nvmev_proc_admin_sq(int new_db, int old_db);

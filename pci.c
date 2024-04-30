@@ -73,7 +73,7 @@ static void __process_msi_irq(int msi_index)
 #endif
 
 __attribute__((no_instrument_function))
-void nvmev_signal_irq(int msi_index)
+void nvmev_signal_irq_muted(int msi_index)
 { /* NVMEV_DEBUG_TRACE(&nvmev_signal_irq); */
 	if (nvmev_vdev->pdev->msix_enabled) {
 		__process_msi_irq(msi_index);
@@ -82,6 +82,11 @@ void nvmev_signal_irq(int msi_index)
 
 		__signal_irq("int", nvmev_vdev->pdev->irq);
 	}
+}
+
+void nvmev_signal_irq(int msi_index) {
+    NVMEV_DEBUG_TRACE(&nvmev_signal_irq);
+    nvmev_signal_irq_muted(msi_index);
 }
 
 /*

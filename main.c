@@ -122,11 +122,13 @@ static void nvmev_proc_dbs(void)
 	// Admin queue
 	new_db = nvmev_vdev->dbs[0];
 	if (new_db != nvmev_vdev->old_dbs[0]) {
+        NVMEV_DEBUG_TRACE(&nvmev_proc_dbs);
 		nvmev_proc_admin_sq(new_db, nvmev_vdev->old_dbs[0]);
 		nvmev_vdev->old_dbs[0] = new_db;
 	}
 	new_db = nvmev_vdev->dbs[1];
 	if (new_db != nvmev_vdev->old_dbs[1]) {
+        NVMEV_DEBUG_TRACE(&nvmev_proc_dbs);
 		nvmev_proc_admin_cq(new_db, nvmev_vdev->old_dbs[1]);
 		nvmev_vdev->old_dbs[1] = new_db;
 	}
@@ -139,6 +141,7 @@ static void nvmev_proc_dbs(void)
 		new_db = nvmev_vdev->dbs[dbs_idx];
 		old_db = nvmev_vdev->old_dbs[dbs_idx];
 		if (new_db != old_db) {
+            NVMEV_DEBUG_TRACE(&nvmev_proc_dbs);
 			nvmev_vdev->old_dbs[dbs_idx] = nvmev_proc_io_sq(qid, new_db, old_db);
 		}
 	}
@@ -151,6 +154,7 @@ static void nvmev_proc_dbs(void)
 		new_db = nvmev_vdev->dbs[dbs_idx];
 		old_db = nvmev_vdev->old_dbs[dbs_idx];
 		if (new_db != old_db) {
+            NVMEV_DEBUG_TRACE(&nvmev_proc_dbs);
 			nvmev_proc_io_cq(qid, new_db, old_db);
 			nvmev_vdev->old_dbs[dbs_idx] = new_db;
 		}

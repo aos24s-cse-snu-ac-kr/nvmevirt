@@ -6,12 +6,12 @@
 #include "simple_ftl.h"
 
 static inline unsigned long long __get_wallclock(void)
-{ NVMEV_DEBUG_TRACE(&__get_wallclock);
+{
 	return cpu_clock(nvmev_vdev->config.cpu_nr_dispatcher);
 }
 
 static size_t __cmd_io_size(struct nvme_rw_command *cmd)
-{ NVMEV_DEBUG_TRACE(&__cmd_io_size);
+{
 	NVMEV_DEBUG_VERBOSE("[%c] %llu + %d, prp %llx %llx\n",
 			cmd->opcode == nvme_cmd_write ? 'W' : 'R', cmd->slba, cmd->length,
 		    cmd->prp1, cmd->prp2);
@@ -62,7 +62,7 @@ static unsigned long long __schedule_io_units(int opcode, unsigned long lba, uns
 }
 
 static unsigned long long __schedule_flush(struct nvmev_request *req)
-{ NVMEV_DEBUG_TRACE(&__schedule_flush);
+{
 	unsigned long long latest = 0;
 	int i;
 
@@ -113,6 +113,6 @@ void simple_init_namespace(struct nvmev_ns *ns, uint32_t id, uint64_t size, void
 }
 
 void simple_remove_namespace(struct nvmev_ns *ns)
-{ NVMEV_DEBUG_TRACE(&simple_remove_namespace);
+{
 	// Nothing to do here
 }

@@ -96,14 +96,14 @@ static char test_channel[CHANNEL_NAME_LEN];
 static struct ioat_dma_thread dma_thread;
 
 static bool ioat_dma_match_channel(struct ioat_dma_params *params, struct dma_chan *chan)
-{ NVMEV_DEBUG_TRACE(&ioat_dma_match_channel);
+{
 	if (params->channel[0] == '\0')
 		return true;
 	return strcmp(dma_chan_name(chan), params->channel) == 0;
 }
 
 static bool ioat_dma_match_device(struct ioat_dma_params *params, struct dma_device *device)
-{ NVMEV_DEBUG_TRACE(&ioat_dma_match_device);
+{
 	if (params->device[0] == '\0')
 		return true;
 	return strcmp(dev_name(device->dev), params->device) == 0;
@@ -117,7 +117,7 @@ static void result(const char *err, unsigned int n, dma_addr_t src_addr, dma_add
 }
 
 int ioat_dma_submit(dma_addr_t src_addr, dma_addr_t dst_addr, unsigned int size)
-{ NVMEV_DEBUG_TRACE(&ioat_dma_submit);
+{
 	struct ioat_dma_thread *thread = &dma_thread;
 	struct ioat_dma_info *info;
 	struct dma_chan *chan;
@@ -181,7 +181,7 @@ out:
 }
 
 static int ioat_dma_add_channel(struct ioat_dma_info *info, struct dma_chan *chan)
-{ NVMEV_DEBUG_TRACE(&ioat_dma_add_channel);
+{
 	struct ioat_dma_chan *dtc;
 	struct dma_device *dma_dev = chan->device;
 	unsigned int thread_count = 0;
@@ -216,12 +216,12 @@ static int ioat_dma_add_channel(struct ioat_dma_info *info, struct dma_chan *cha
 }
 
 static bool filter(struct dma_chan *chan, void *param)
-{ NVMEV_DEBUG_TRACE(&filter);
+{
 	return ioat_dma_match_channel(param, chan) && ioat_dma_match_device(param, chan->device);
 }
 
 static void request_channels(struct ioat_dma_info *info, enum dma_transaction_type type)
-{ NVMEV_DEBUG_TRACE(&request_channels);
+{
 	dma_cap_mask_t mask;
 
 	dma_cap_zero(mask);
@@ -244,7 +244,7 @@ static void request_channels(struct ioat_dma_info *info, enum dma_transaction_ty
 }
 
 static void add_threaded_dma(struct ioat_dma_info *info)
-{ NVMEV_DEBUG_TRACE(&add_threaded_dma);
+{
 	struct ioat_dma_params *params = &info->params;
 
 	/* Copy test parameters */
@@ -260,7 +260,7 @@ static void add_threaded_dma(struct ioat_dma_info *info)
 }
 
 int ioat_dma_chan_set(const char *val)
-{ NVMEV_DEBUG_TRACE(&ioat_dma_chan_set);
+{
 	struct ioat_dma_info *info = &test_info;
 	struct ioat_dma_chan *dtc;
 	int ret = 0;
@@ -317,7 +317,7 @@ add_chan_err:
 }
 
 static void ioat_dma_cleanup_channel(struct ioat_dma_chan *dtc)
-{ NVMEV_DEBUG_TRACE(&ioat_dma_cleanup_channel);
+{
 	/* terminate all transfers on specified channels */
 	dmaengine_terminate_sync(dtc->chan);
 
@@ -325,7 +325,7 @@ static void ioat_dma_cleanup_channel(struct ioat_dma_chan *dtc)
 }
 
 void ioat_dma_cleanup(void)
-{ NVMEV_DEBUG_TRACE(&ioat_dma_cleanup);
+{
 	struct ioat_dma_info *info = &test_info;
 
 	struct ioat_dma_chan *dtc, *_dtc;

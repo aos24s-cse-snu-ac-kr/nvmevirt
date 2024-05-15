@@ -14,7 +14,7 @@ static unsigned long long dev_size;
 static unsigned long long total_written;
 
 int append_only_allocator_init(u64 size)
-{ NVMEV_DEBUG_TRACE(&append_only_allocator_init);
+{
 	dev_size = size;
 	latest = 0;
 	total_written = 0;
@@ -23,7 +23,7 @@ int append_only_allocator_init(u64 size)
 }
 
 size_t append_only_allocate(u64 length, void *args)
-{ NVMEV_DEBUG_TRACE(&append_only_allocate);
+{
 	size_t ret = latest;
 	latest += length;
 	total_written += length;
@@ -38,5 +38,5 @@ size_t append_only_allocate(u64 length, void *args)
 }
 
 void append_only_kill(void)
-{ NVMEV_DEBUG_TRACE(&append_only_kill);
+{
 }

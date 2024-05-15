@@ -41,12 +41,6 @@
 #define NVMEV_DEBUG_VERBOSE(string, args...)
 #endif
 
-#ifdef CONFIG_NVMEV_DEBUG_TRACE
-#define  NVMEV_DEBUG_TRACE(pointer) printk(KERN_WARNING "%s enter: {file: '%s', line: %d, func: '%s', pointer: '%p'}", NVMEV_DRV_NAME, __FILE__, __LINE__, __func__, #pointer)
-#else
-#define  NVMEV_DEBUG_TRACE(pointer)
-#endif
-
 #define NR_MAX_IO_QUEUE 72
 #define NR_MAX_PARALLEL_IO 16384
 

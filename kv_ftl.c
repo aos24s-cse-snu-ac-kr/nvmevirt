@@ -20,12 +20,12 @@ static const struct allocator_ops bitmap_ops = {
 };
 
 static inline unsigned long long __get_wallclock(void)
-{ NVMEV_DEBUG_TRACE(&__get_wallclock);
+{
 	return cpu_clock(nvmev_vdev->config.cpu_nr_dispatcher);
 }
 
 static size_t __cmd_io_size(struct nvme_rw_command *cmd)
-{ NVMEV_DEBUG_TRACE(&__cmd_io_size);
+{
 	NVMEV_DEBUG("%d lba %llu length %d, %llx %llx\n", cmd->opcode, cmd->slba, cmd->length,
 		    cmd->prp1, cmd->prp2);
 
@@ -33,7 +33,7 @@ static size_t __cmd_io_size(struct nvme_rw_command *cmd)
 }
 
 static unsigned int cmd_key_length(struct nvme_kv_command cmd)
-{ NVMEV_DEBUG_TRACE(&cmd_key_length);
+{
 	if (cmd.common.opcode == nvme_cmd_kv_store) {
 		return cmd.kv_store.key_len + 1;
 	} else if (cmd.common.opcode == nvme_cmd_kv_retrieve) {
@@ -46,7 +46,7 @@ static unsigned int cmd_key_length(struct nvme_kv_command cmd)
 }
 
 static unsigned int cmd_value_length(struct nvme_kv_command cmd)
-{ NVMEV_DEBUG_TRACE(&cmd_value_length);
+{
 	if (cmd.common.opcode == nvme_cmd_kv_store) {
 		return cmd.kv_store.value_len << 2;
 	} else if (cmd.common.opcode == nvme_cmd_kv_retrieve) {
@@ -100,7 +100,7 @@ static unsigned long long __schedule_io_units(int opcode, unsigned long lba, uns
 }
 
 static unsigned long long __schedule_flush(struct nvmev_request *req)
-{ NVMEV_DEBUG_TRACE(&__schedule_flush);
+{
 	unsigned long long latest = 0;
 	int i;
 
@@ -114,7 +114,7 @@ static unsigned long long __schedule_flush(struct nvmev_request *req)
 /* KV-SSD Mapping Management */
 
 static size_t allocate_mem_offset(struct kv_ftl *kv_ftl, struct nvme_kv_command cmd)
-{ NVMEV_DEBUG_TRACE(&allocate_mem_offset);
+{
 	if (cmd.common.opcode == nvme_cmd_kv_store) {
 		u64 length_bytes = cmd_value_length(cmd);
 		size_t offset;
@@ -136,7 +136,7 @@ static size_t allocate_mem_offset(struct kv_ftl *kv_ftl, struct nvme_kv_command 
 }
 
 static size_t allocate_mem_offset_by_length(struct kv_ftl *kv_ftl, int val_len)
-{ NVMEV_DEBUG_TRACE(&allocate_mem_offset_by_length);
+{
 	u64 length_bytes = val_len;
 	size_t offset;
 
@@ -152,17 +152,17 @@ static size_t allocate_mem_offset_by_length(struct kv_ftl *kv_ftl, int val_len)
 }
 
 static unsigned int get_hash_slot(struct kv_ftl *kv_ftl, char *key, u32 key_len)
-{ NVMEV_DEBUG_TRACE(&get_hash_slot);
+{
 	return hash_function(key, key_len) % kv_ftl->hash_slots;
 }
 
 static void chain_mapping(struct kv_ftl *kv_ftl, unsigned int prev, unsigned int slot)
-{ NVMEV_DEBUG_TRACE(&chain_mapping);
+{
 	kv_ftl->kv_mapping_table[prev].next_slot = slot;
 }
 
 static unsigned int find_next_slot(struct kv_ftl *kv_ftl, int original_slot, int *prev_slot)
-{ NVMEV_DEBUG_TRACE(&find_next_slot);
+{
 	unsigned int ret_slot = original_slot;
 
 	// 1. Find the tail of the link.
@@ -266,7 +266,7 @@ static unsigned int new_mapping_entry_by_key(struct kv_ftl *kv_ftl, unsigned cha
 }
 
 static unsigned int update_mapping_entry(struct kv_ftl *kv_ftl, struct nvme_kv_command cmd)
-{ NVMEV_DEBUG_TRACE(&update_mapping_entry);
+{
 	unsigned int slot = 0;
 	bool found = false;
 	// u64 t0, t1;
@@ -318,7 +318,7 @@ static unsigned int update_mapping_entry(struct kv_ftl *kv_ftl, struct nvme_kv_c
 }
 
 static struct mapping_entry get_mapping_entry(struct kv_ftl *kv_ftl, struct nvme_kv_command cmd)
-{ NVMEV_DEBUG_TRACE(&get_mapping_entry);
+{
 	struct mapping_entry mapping;
 	// char *key = NULL;
 	unsigned int slot = 0;
@@ -436,7 +436,7 @@ static struct mapping_entry get_mapping_entry_by_key(struct kv_ftl *kv_ftl, unsi
 }
 
 static struct mapping_entry delete_mapping_entry(struct kv_ftl *kv_ftl, struct nvme_kv_command cmd)
-{ NVMEV_DEBUG_TRACE(&delete_mapping_entry);
+{
 	struct mapping_entry mapping;
 	// char *key = NULL;
 	unsigned int slot = 0;
@@ -797,7 +797,7 @@ static unsigned int __do_perform_kv_batch(struct kv_ftl *kv_ftl, struct nvme_kv_
 }
 
 static unsigned int kv_iter_open(struct kv_ftl *kv_ftl, struct nvme_kv_command cmd, unsigned int *status)
-{ NVMEV_DEBUG_TRACE(&kv_iter_open);
+{
 	int iter = 0;
 	bool flag = false;
 
@@ -825,7 +825,7 @@ static unsigned int kv_iter_open(struct kv_ftl *kv_ftl, struct nvme_kv_command c
 }
 
 static unsigned int kv_iter_close(struct kv_ftl *kv_ftl, struct nvme_kv_command cmd, unsigned int *status)
-{ NVMEV_DEBUG_TRACE(&kv_iter_close);
+{
 	int iter = cmd.kv_iter_req.iter_handle;
 
 	if (kv_ftl->iter_handle[iter]) {
@@ -964,7 +964,7 @@ static unsigned int __do_perform_kv_iter_io(struct kv_ftl *kv_ftl, struct nvme_k
 }
 
 bool kv_proc_nvme_io_cmd(struct nvmev_ns *ns, struct nvmev_request *req, struct nvmev_result *ret)
-{ NVMEV_DEBUG_TRACE(&kv_proc_nvme_io_cmd);
+{
 	struct nvme_command *cmd = req->cmd;
 
 	switch (cmd->common.opcode) {
@@ -996,12 +996,12 @@ bool kv_proc_nvme_io_cmd(struct nvmev_ns *ns, struct nvmev_request *req, struct 
 }
 
 bool kv_identify_nvme_io_cmd(struct nvmev_ns *ns, struct nvme_command cmd)
-{ NVMEV_DEBUG_TRACE(&kv_identify_nvme_io_cmd);
+{
 	return is_kv_cmd(cmd.common.opcode);
 }
 
 unsigned int kv_perform_nvme_io_cmd(struct nvmev_ns *ns, struct nvme_command *cmd, uint32_t *status)
-{ NVMEV_DEBUG_TRACE(&kv_perform_nvme_io_cmd);
+{
 	struct kv_ftl *kv_ftl = (struct kv_ftl *)ns->ftls;
 	struct nvme_kv_command *kv_cmd = (struct nvme_kv_command *)cmd;
 
@@ -1073,7 +1073,7 @@ void kv_init_namespace(struct nvmev_ns *ns, uint32_t id, uint64_t size, void *ma
 }
 
 void kv_remove_namespace(struct nvmev_ns *ns)
-{ NVMEV_DEBUG_TRACE(&kv_remove_namespace);
+{
 	kfree(ns->ftls);
 	ns->ftls = NULL;
 }

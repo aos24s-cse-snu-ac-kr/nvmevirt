@@ -8,7 +8,7 @@
 #include "zns_ftl.h"
 
 static void __init_descriptor(struct zns_ftl *zns_ftl)
-{ NVMEV_DEBUG_TRACE(&__init_descriptor);
+{
 	struct zone_descriptor *zone_descs;
 	uint32_t zone_size = zns_ftl->zp.zone_size;
 	uint32_t nr_zones = zns_ftl->zp.nr_zones;
@@ -51,7 +51,7 @@ static void __init_descriptor(struct zns_ftl *zns_ftl)
 }
 
 static void __remove_descriptor(struct zns_ftl *zns_ftl)
-{ NVMEV_DEBUG_TRACE(&__remove_descriptor);
+{
 	if (zns_ftl->zp.zrwa_buffer_size)
 		kfree(zns_ftl->zwra_buffer);
 
@@ -63,7 +63,7 @@ static void __remove_descriptor(struct zns_ftl *zns_ftl)
 }
 
 static void __init_resource(struct zns_ftl *zns_ftl)
-{ NVMEV_DEBUG_TRACE(&__init_resource);
+{
 	struct zone_resource_info *res_infos = zns_ftl->res_infos;
 
 	res_infos[ACTIVE_ZONE] = (struct zone_resource_info){
@@ -83,7 +83,7 @@ static void __init_resource(struct zns_ftl *zns_ftl)
 }
 
 static void zns_init_params(struct znsparams *zpp, struct ssdparams *spp, uint64_t capacity)
-{ NVMEV_DEBUG_TRACE(&zns_init_params);
+{
 	*zpp = (struct znsparams){
 		.zone_size = ZONE_SIZE,
 		.nr_zones = capacity / ZONE_SIZE,
@@ -156,7 +156,7 @@ void zns_init_namespace(struct nvmev_ns *ns, uint32_t id, uint64_t size, void *m
 }
 
 void zns_remove_namespace(struct nvmev_ns *ns)
-{ NVMEV_DEBUG_TRACE(&zns_remove_namespace);
+{
 	struct zns_ftl *zns_ftl = (struct zns_ftl *)ns->ftls;
 
 	ssd_remove(zns_ftl->ssd);
@@ -169,7 +169,7 @@ void zns_remove_namespace(struct nvmev_ns *ns)
 }
 
 static void zns_flush(struct nvmev_ns *ns, struct nvmev_request *req, struct nvmev_result *ret)
-{ NVMEV_DEBUG_TRACE(&zns_flush);
+{
 	uint64_t start, latest;
 	uint32_t i;
 	struct zns_ftl *zns_ftl = (struct zns_ftl *)ns->ftls;
@@ -188,7 +188,7 @@ static void zns_flush(struct nvmev_ns *ns, struct nvmev_request *req, struct nvm
 }
 
 bool zns_proc_nvme_io_cmd(struct nvmev_ns *ns, struct nvmev_request *req, struct nvmev_result *ret)
-{ NVMEV_DEBUG_TRACE(&zns_proc_nvme_io_cmd);
+{
 	struct nvme_command *cmd = req->cmd;
 	NVMEV_ASSERT(ns->csi == NVME_CSI_ZNS);
 	/*still not support multi partitions ...*/

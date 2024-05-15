@@ -7,28 +7,28 @@
 #include "conv_ftl.h"
 
 static inline bool last_pg_in_wordline(struct conv_ftl *conv_ftl, struct ppa *ppa)
-{ NVMEV_DEBUG_TRACE(&last_pg_in_wordline);
+{
 	struct ssdparams *spp = &conv_ftl->ssd->sp;
 	return (ppa->g.pg % spp->pgs_per_oneshotpg) == (spp->pgs_per_oneshotpg - 1);
 }
 
 static bool should_gc(struct conv_ftl *conv_ftl)
-{ NVMEV_DEBUG_TRACE(&should_gc);
+{
 	return (conv_ftl->lm.free_line_cnt <= conv_ftl->cp.gc_thres_lines);
 }
 
 static inline bool should_gc_high(struct conv_ftl *conv_ftl)
-{ NVMEV_DEBUG_TRACE(&should_gc_high);
+{
 	return conv_ftl->lm.free_line_cnt <= conv_ftl->cp.gc_thres_lines_high;
 }
 
 static inline struct ppa get_maptbl_ent(struct conv_ftl *conv_ftl, uint64_t lpn)
-{ NVMEV_DEBUG_TRACE(&get_maptbl_ent);
+{
 	return conv_ftl->maptbl[lpn];
 }
 
 static inline void set_maptbl_ent(struct conv_ftl *conv_ftl, uint64_t lpn, struct ppa *ppa)
-{ NVMEV_DEBUG_TRACE(&set_maptbl_ent);
+{
 	NVMEV_ASSERT(lpn < conv_ftl->ssd->sp.tt_pgs);
 	conv_ftl->maptbl[lpn] = *ppa;
 }
@@ -50,7 +50,7 @@ static uint64_t ppa2pgidx(struct conv_ftl *conv_ftl, struct ppa *ppa)
 }
 
 static inline uint64_t get_rmap_ent(struct conv_ftl *conv_ftl, struct ppa *ppa)
-{ NVMEV_DEBUG_TRACE(&get_rmap_ent);
+{
 	uint64_t pgidx = ppa2pgidx(conv_ftl, ppa);
 
 	return conv_ftl->rmap[pgidx];
@@ -58,46 +58,46 @@ static inline uint64_t get_rmap_ent(struct conv_ftl *conv_ftl, struct ppa *ppa)
 
 /* set rmap[page_no(ppa)] -> lpn */
 static inline void set_rmap_ent(struct conv_ftl *conv_ftl, uint64_t lpn, struct ppa *ppa)
-{ NVMEV_DEBUG_TRACE(&set_rmap_ent);
+{
 	uint64_t pgidx = ppa2pgidx(conv_ftl, ppa);
 
 	conv_ftl->rmap[pgidx] = lpn;
 }
 
 static inline int victim_line_cmp_pri(pqueue_pri_t next, pqueue_pri_t curr)
-{ NVMEV_DEBUG_TRACE(&victim_line_cmp_pri);
+{
 	return (next > curr);
 }
 
 static inline pqueue_pri_t victim_line_get_pri(void *a)
-{ NVMEV_DEBUG_TRACE(&victim_line_get_pri);
+{
 	return ((struct line *)a)->vpc;
 }
 
 static inline void victim_line_set_pri(void *a, pqueue_pri_t pri)
-{ NVMEV_DEBUG_TRACE(&victim_line_set_pri);
+{
 	((struct line *)a)->vpc = pri;
 }
 
 static inline size_t victim_line_get_pos(void *a)
-{ NVMEV_DEBUG_TRACE(&victim_line_get_pos);
+{
 	return ((struct line *)a)->pos;
 }
 
 static inline void victim_line_set_pos(void *a, size_t pos)
-{ NVMEV_DEBUG_TRACE(&victim_line_set_pos);
+{
 	((struct line *)a)->pos = pos;
 }
 
 static inline void consume_write_credit(struct conv_ftl *conv_ftl)
-{ NVMEV_DEBUG_TRACE(&consume_write_credit);
+{
 	conv_ftl->wfc.write_credits--;
 }
 
 static void foreground_gc(struct conv_ftl *conv_ftl);
 
 static inline void check_and_refill_write_credit(struct conv_ftl *conv_ftl)
-{ NVMEV_DEBUG_TRACE(&check_and_refill_write_credit);
+{
 	struct write_flow_control *wfc = &(conv_ftl->wfc);
 	if (wfc->write_credits <= 0) {
 		foreground_gc(conv_ftl);
@@ -107,7 +107,7 @@ static inline void check_and_refill_write_credit(struct conv_ftl *conv_ftl)
 }
 
 static void init_lines(struct conv_ftl *conv_ftl)
-{ NVMEV_DEBUG_TRACE(&init_lines);
+{
 	struct ssdparams *spp = &conv_ftl->ssd->sp;
 	struct line_mgmt *lm = &conv_ftl->lm;
 	struct line *line;
@@ -145,13 +145,13 @@ static void init_lines(struct conv_ftl *conv_ftl)
 }
 
 static void remove_lines(struct conv_ftl *conv_ftl)
-{ NVMEV_DEBUG_TRACE(&remove_lines);
+{
 	pqueue_free(conv_ftl->lm.victim_line_pq);
 	vfree(conv_ftl->lm.lines);
 }
 
 static void init_write_flow_control(struct conv_ftl *conv_ftl)
-{ NVMEV_DEBUG_TRACE(&init_write_flow_control);
+{
 	struct write_flow_control *wfc = &(conv_ftl->wfc);
 	struct ssdparams *spp = &conv_ftl->ssd->sp;
 
@@ -160,7 +160,7 @@ static void init_write_flow_control(struct conv_ftl *conv_ftl)
 }
 
 static inline void check_addr(int a, int max)
-{ NVMEV_DEBUG_TRACE(&check_addr);
+{
 	NVMEV_ASSERT(a >= 0 && a < max);
 }
 
@@ -193,7 +193,7 @@ static struct write_pointer *__get_wp(struct conv_ftl *ftl, uint32_t io_type)
 }
 
 static void prepare_write_pointer(struct conv_ftl *conv_ftl, uint32_t io_type)
-{ NVMEV_DEBUG_TRACE(&prepare_write_pointer);
+{
 	struct write_pointer *wp = __get_wp(conv_ftl, io_type);
 	struct line *curline = get_next_free_line(conv_ftl);
 
@@ -212,7 +212,7 @@ static void prepare_write_pointer(struct conv_ftl *conv_ftl, uint32_t io_type)
 }
 
 static void advance_write_pointer(struct conv_ftl *conv_ftl, uint32_t io_type)
-{ NVMEV_DEBUG_TRACE(&advance_write_pointer);
+{
 	struct ssdparams *spp = &conv_ftl->ssd->sp;
 	struct line_mgmt *lm = &conv_ftl->lm;
 	struct write_pointer *wpp = __get_wp(conv_ftl, io_type);
@@ -280,7 +280,7 @@ out:
 }
 
 static struct ppa get_new_page(struct conv_ftl *conv_ftl, uint32_t io_type)
-{ NVMEV_DEBUG_TRACE(&get_new_page);
+{
 	struct ppa ppa;
 	struct write_pointer *wp = __get_wp(conv_ftl, io_type);
 
@@ -297,7 +297,7 @@ static struct ppa get_new_page(struct conv_ftl *conv_ftl, uint32_t io_type)
 }
 
 static void init_maptbl(struct conv_ftl *conv_ftl)
-{ NVMEV_DEBUG_TRACE(&init_maptbl);
+{
 	int i;
 	struct ssdparams *spp = &conv_ftl->ssd->sp;
 
@@ -308,12 +308,12 @@ static void init_maptbl(struct conv_ftl *conv_ftl)
 }
 
 static void remove_maptbl(struct conv_ftl *conv_ftl)
-{ NVMEV_DEBUG_TRACE(&remove_maptbl);
+{
 	vfree(conv_ftl->maptbl);
 }
 
 static void init_rmap(struct conv_ftl *conv_ftl)
-{ NVMEV_DEBUG_TRACE(&init_rmap);
+{
 	int i;
 	struct ssdparams *spp = &conv_ftl->ssd->sp;
 
@@ -324,12 +324,12 @@ static void init_rmap(struct conv_ftl *conv_ftl)
 }
 
 static void remove_rmap(struct conv_ftl *conv_ftl)
-{ NVMEV_DEBUG_TRACE(&remove_rmap);
+{
 	vfree(conv_ftl->rmap);
 }
 
 static void conv_init_ftl(struct conv_ftl *conv_ftl, struct convparams *cpp, struct ssd *ssd)
-{ NVMEV_DEBUG_TRACE(&conv_init_ftl);
+{
 	/*copy convparams*/
 	conv_ftl->cp = *cpp;
 
@@ -357,14 +357,14 @@ static void conv_init_ftl(struct conv_ftl *conv_ftl, struct convparams *cpp, str
 }
 
 static void conv_remove_ftl(struct conv_ftl *conv_ftl)
-{ NVMEV_DEBUG_TRACE(&conv_remove_ftl);
+{
 	remove_lines(conv_ftl);
 	remove_rmap(conv_ftl);
 	remove_maptbl(conv_ftl);
 }
 
 static void conv_init_params(struct convparams *cpp)
-{ NVMEV_DEBUG_TRACE(&conv_init_params);
+{
 	cpp->op_area_pcent = OP_AREA_PERCENT;
 	cpp->gc_thres_lines = 2; /* Need only two lines.(host write, gc)*/
 	cpp->gc_thres_lines_high = 2; /* Need only two lines.(host write, gc)*/
@@ -419,7 +419,7 @@ void conv_init_namespace(struct nvmev_ns *ns, uint32_t id, uint64_t size, void *
 }
 
 void conv_remove_namespace(struct nvmev_ns *ns)
-{ NVMEV_DEBUG_TRACE(&conv_remove_namespace);
+{
 	struct conv_ftl *conv_ftls = (struct conv_ftl *)ns->ftls;
 	const uint32_t nr_parts = SSD_PARTITIONS;
 	uint32_t i;
@@ -445,7 +445,7 @@ void conv_remove_namespace(struct nvmev_ns *ns)
 }
 
 static inline bool valid_ppa(struct conv_ftl *conv_ftl, struct ppa *ppa)
-{ NVMEV_DEBUG_TRACE(&valid_ppa);
+{
 	struct ssdparams *spp = &conv_ftl->ssd->sp;
 	int ch = ppa->g.ch;
 	int lun = ppa->g.lun;
@@ -469,12 +469,12 @@ static inline bool valid_ppa(struct conv_ftl *conv_ftl, struct ppa *ppa)
 }
 
 static inline bool valid_lpn(struct conv_ftl *conv_ftl, uint64_t lpn)
-{ NVMEV_DEBUG_TRACE(&valid_lpn);
+{
 	return (lpn < conv_ftl->ssd->sp.tt_pgs);
 }
 
 static inline bool mapped_ppa(struct ppa *ppa)
-{ NVMEV_DEBUG_TRACE(&mapped_ppa);
+{
 	return !(ppa->ppa == UNMAPPED_PPA);
 }
 
@@ -485,7 +485,7 @@ static inline struct line *get_line(struct conv_ftl *conv_ftl, struct ppa *ppa)
 
 /* update SSD status about one page from PG_VALID -> PG_VALID */
 static void mark_page_invalid(struct conv_ftl *conv_ftl, struct ppa *ppa)
-{ NVMEV_DEBUG_TRACE(&mark_page_invalid);
+{
 	struct ssdparams *spp = &conv_ftl->ssd->sp;
 	struct line_mgmt *lm = &conv_ftl->lm;
 	struct nand_block *blk = NULL;
@@ -532,7 +532,7 @@ static void mark_page_invalid(struct conv_ftl *conv_ftl, struct ppa *ppa)
 }
 
 static void mark_page_valid(struct conv_ftl *conv_ftl, struct ppa *ppa)
-{ NVMEV_DEBUG_TRACE(&mark_page_valid);
+{
 	struct ssdparams *spp = &conv_ftl->ssd->sp;
 	struct nand_block *blk = NULL;
 	struct nand_page *pg = NULL;
@@ -555,7 +555,7 @@ static void mark_page_valid(struct conv_ftl *conv_ftl, struct ppa *ppa)
 }
 
 static void mark_block_free(struct conv_ftl *conv_ftl, struct ppa *ppa)
-{ NVMEV_DEBUG_TRACE(&mark_block_free);
+{
 	struct ssdparams *spp = &conv_ftl->ssd->sp;
 	struct nand_block *blk = get_blk(conv_ftl->ssd, ppa);
 	struct nand_page *pg = NULL;
@@ -576,7 +576,7 @@ static void mark_block_free(struct conv_ftl *conv_ftl, struct ppa *ppa)
 }
 
 static void gc_read_page(struct conv_ftl *conv_ftl, struct ppa *ppa)
-{ NVMEV_DEBUG_TRACE(&gc_read_page);
+{
 	struct ssdparams *spp = &conv_ftl->ssd->sp;
 	struct convparams *cpp = &conv_ftl->cp;
 	/* advance conv_ftl status, we don't care about how long it takes */
@@ -595,7 +595,7 @@ static void gc_read_page(struct conv_ftl *conv_ftl, struct ppa *ppa)
 
 /* move valid page data (already in DRAM) from victim line to a new page */
 static uint64_t gc_write_page(struct conv_ftl *conv_ftl, struct ppa *old_ppa)
-{ NVMEV_DEBUG_TRACE(&gc_write_page);
+{
 	struct ssdparams *spp = &conv_ftl->ssd->sp;
 	struct convparams *cpp = &conv_ftl->cp;
 	struct ppa new_ppa;
@@ -666,7 +666,7 @@ static struct line *select_victim_line(struct conv_ftl *conv_ftl, bool force)
 
 /* here ppa identifies the block we want to clean */
 static void clean_one_block(struct conv_ftl *conv_ftl, struct ppa *ppa)
-{ NVMEV_DEBUG_TRACE(&clean_one_block);
+{
 	struct ssdparams *spp = &conv_ftl->ssd->sp;
 	struct nand_page *pg_iter = NULL;
 	int cnt = 0;
@@ -690,7 +690,7 @@ static void clean_one_block(struct conv_ftl *conv_ftl, struct ppa *ppa)
 
 /* here ppa identifies the block we want to clean */
 static void clean_one_flashpg(struct conv_ftl *conv_ftl, struct ppa *ppa)
-{ NVMEV_DEBUG_TRACE(&clean_one_flashpg);
+{
 	struct ssdparams *spp = &conv_ftl->ssd->sp;
 	struct convparams *cpp = &conv_ftl->cp;
 	struct nand_page *pg_iter = NULL;
@@ -739,7 +739,7 @@ static void clean_one_flashpg(struct conv_ftl *conv_ftl, struct ppa *ppa)
 }
 
 static void mark_line_free(struct conv_ftl *conv_ftl, struct ppa *ppa)
-{ NVMEV_DEBUG_TRACE(&mark_line_free);
+{
 	struct line_mgmt *lm = &conv_ftl->lm;
 	struct line *line = get_line(conv_ftl, ppa);
 	line->ipc = 0;
@@ -750,7 +750,7 @@ static void mark_line_free(struct conv_ftl *conv_ftl, struct ppa *ppa)
 }
 
 static int do_gc(struct conv_ftl *conv_ftl, bool force)
-{ NVMEV_DEBUG_TRACE(&do_gc);
+{
 	struct line *victim_line = NULL;
 	struct ssdparams *spp = &conv_ftl->ssd->sp;
 	struct ppa ppa;
@@ -812,7 +812,7 @@ static int do_gc(struct conv_ftl *conv_ftl, bool force)
 }
 
 static void foreground_gc(struct conv_ftl *conv_ftl)
-{ NVMEV_DEBUG_TRACE(&foreground_gc);
+{
 	if (should_gc_high(conv_ftl)) {
 		NVMEV_DEBUG_VERBOSE("should_gc_high passed");
 		/* perform GC here until !should_gc(conv_ftl) */
@@ -821,7 +821,7 @@ static void foreground_gc(struct conv_ftl *conv_ftl)
 }
 
 static bool is_same_flash_page(struct conv_ftl *conv_ftl, struct ppa ppa1, struct ppa ppa2)
-{ NVMEV_DEBUG_TRACE(&is_same_flash_page);
+{
 	struct ssdparams *spp = &conv_ftl->ssd->sp;
 	uint32_t ppa1_page = ppa1.g.pg / spp->pgs_per_flashpg;
 	uint32_t ppa2_page = ppa2.g.pg / spp->pgs_per_flashpg;
@@ -830,7 +830,7 @@ static bool is_same_flash_page(struct conv_ftl *conv_ftl, struct ppa ppa1, struc
 }
 
 static bool conv_read(struct nvmev_ns *ns, struct nvmev_request *req, struct nvmev_result *ret)
-{ NVMEV_DEBUG_TRACE(&conv_read);
+{
 	struct conv_ftl *conv_ftls = (struct conv_ftl *)ns->ftls;
 	struct conv_ftl *conv_ftl = &conv_ftls[0];
 	/* spp are shared by all instances*/
@@ -922,7 +922,7 @@ static bool conv_read(struct nvmev_ns *ns, struct nvmev_request *req, struct nvm
 }
 
 static bool conv_write(struct nvmev_ns *ns, struct nvmev_request *req, struct nvmev_result *ret)
-{ NVMEV_DEBUG_TRACE(&conv_write);
+{
 	struct conv_ftl *conv_ftls = (struct conv_ftl *)ns->ftls;
 	struct conv_ftl *conv_ftl = &conv_ftls[0];
 
@@ -1024,7 +1024,7 @@ static bool conv_write(struct nvmev_ns *ns, struct nvmev_request *req, struct nv
 }
 
 static void conv_flush(struct nvmev_ns *ns, struct nvmev_request *req, struct nvmev_result *ret)
-{ NVMEV_DEBUG_TRACE(&conv_flush);
+{
 	uint64_t start, latest;
 	uint32_t i;
 	struct conv_ftl *conv_ftls = (struct conv_ftl *)ns->ftls;
@@ -1043,7 +1043,7 @@ static void conv_flush(struct nvmev_ns *ns, struct nvmev_request *req, struct nv
 }
 
 bool conv_proc_nvme_io_cmd(struct nvmev_ns *ns, struct nvmev_request *req, struct nvmev_result *ret)
-{ NVMEV_DEBUG_TRACE(&conv_proc_nvme_io_cmd);
+{
 	struct nvme_command *cmd = req->cmd;
 
 	NVMEV_ASSERT(ns->csi == NVME_CSI_NVM);

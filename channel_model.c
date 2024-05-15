@@ -9,12 +9,12 @@
 #include "channel_model.h"
 
 static inline unsigned long long __get_wallclock(void)
-{ NVMEV_DEBUG_TRACE(&__get_wallclock);
+{
 	return cpu_clock(nvmev_vdev->config.cpu_nr_dispatcher);
 }
 
 void chmodel_init(struct channel_model *ch, uint64_t bandwidth /*MB/s*/)
-{ NVMEV_DEBUG_TRACE(&chmodel_init);
+{
 	ch->head = 0;
 	ch->valid_len = 0;
 	ch->cur_time = 0;
@@ -29,7 +29,7 @@ void chmodel_init(struct channel_model *ch, uint64_t bandwidth /*MB/s*/)
 }
 
 uint64_t chmodel_request(struct channel_model *ch, uint64_t request_time, uint64_t length)
-{ NVMEV_DEBUG_TRACE(&chmodel_request);
+{
 	uint64_t cur_time = __get_wallclock();
 	uint32_t pos, next_pos;
 	uint32_t remaining_credits, consumed_credits;

@@ -42,19 +42,19 @@ pqueue_t *pqueue_init(size_t n, pqueue_cmp_pri_f cmppri, pqueue_get_pri_f getpri
 }
 
 void pqueue_free(pqueue_t *q)
-{ NVMEV_DEBUG_TRACE(&pqueue_free);
+{
 	kfree(q->d);
 	kfree(q);
 }
 
 size_t pqueue_size(pqueue_t *q)
-{ NVMEV_DEBUG_TRACE(&pqueue_size);
+{
 	/* queue element 0 exists but doesn't count since it isn't used. */
 	return (q->size - 1);
 }
 
 static void bubble_up(pqueue_t *q, size_t i)
-{ NVMEV_DEBUG_TRACE(&bubble_up);
+{
 	size_t parent_node;
 	void *moving_node = q->d[i];
 	pqueue_pri_t moving_pri = q->getpri(moving_node);
@@ -71,7 +71,7 @@ static void bubble_up(pqueue_t *q, size_t i)
 }
 
 static size_t maxchild(pqueue_t *q, size_t i)
-{ NVMEV_DEBUG_TRACE(&maxchild);
+{
 	size_t child_node = left(i);
 
 	if (child_node >= q->size)
@@ -85,7 +85,7 @@ static size_t maxchild(pqueue_t *q, size_t i)
 }
 
 static void percolate_down(pqueue_t *q, size_t i)
-{ NVMEV_DEBUG_TRACE(&percolate_down);
+{
 	size_t child_node;
 	void *moving_node = q->d[i];
 	pqueue_pri_t moving_pri = q->getpri(moving_node);
@@ -102,7 +102,7 @@ static void percolate_down(pqueue_t *q, size_t i)
 }
 
 int pqueue_insert(pqueue_t *q, void *d)
-{ NVMEV_DEBUG_TRACE(&pqueue_insert);
+{
 	//void *tmp;
 	size_t i;
 	//size_t newsize;
@@ -129,7 +129,7 @@ int pqueue_insert(pqueue_t *q, void *d)
 }
 
 void pqueue_change_priority(pqueue_t *q, pqueue_pri_t new_pri, void *d)
-{ NVMEV_DEBUG_TRACE(&pqueue_change_priority);
+{
 	size_t posn;
 	pqueue_pri_t old_pri = q->getpri(d);
 
@@ -142,7 +142,7 @@ void pqueue_change_priority(pqueue_t *q, pqueue_pri_t new_pri, void *d)
 }
 
 int pqueue_remove(pqueue_t *q, void *d)
-{ NVMEV_DEBUG_TRACE(&pqueue_remove);
+{
 	size_t posn = q->getpos(d);
 	q->d[posn] = q->d[--q->size];
 	if (q->cmppri(q->getpri(d), q->getpri(q->d[posn])))
@@ -179,7 +179,7 @@ void *pqueue_peek(pqueue_t *q)
 
 #if 0
 void pqueue_dump(pqueue_t *q, FILE *out, pqueue_print_entry_f print)
-{ NVMEV_DEBUG_TRACE(&pqueue_dump);
+{
     int i;
 
     fprintf(stdout,"posn\tleft\tright\tparent\tmaxchild\t...\n");
@@ -194,17 +194,17 @@ void pqueue_dump(pqueue_t *q, FILE *out, pqueue_print_entry_f print)
 }
 
 static void set_pos(void *d, size_t val)
-{ NVMEV_DEBUG_TRACE(&set_pos);
+{
     /* do nothing */
 }
 
 static void set_pri(void *d, pqueue_pri_t pri)
-{ NVMEV_DEBUG_TRACE(&set_pri);
+{
     /* do nothing */
 }
 
 void pqueue_print(pqueue_t *q, FILE *out, pqueue_print_entry_f print)
-{ NVMEV_DEBUG_TRACE(&pqueue_print);
+{
     pqueue_t *dup;
 	void *e;
 
@@ -223,7 +223,7 @@ void pqueue_print(pqueue_t *q, FILE *out, pqueue_print_entry_f print)
 #endif
 
 static int subtree_is_valid(pqueue_t *q, int pos)
-{ NVMEV_DEBUG_TRACE(&subtree_is_valid);
+{
 	if (left(pos) < q->size) {
 		/* has a left child */
 		if (q->cmppri(q->getpri(q->d[pos]), q->getpri(q->d[left(pos)])))
@@ -242,6 +242,6 @@ static int subtree_is_valid(pqueue_t *q, int pos)
 }
 
 int pqueue_is_valid(pqueue_t *q)
-{ NVMEV_DEBUG_TRACE(&pqueue_is_valid);
+{
 	return subtree_is_valid(q, 1);
 }

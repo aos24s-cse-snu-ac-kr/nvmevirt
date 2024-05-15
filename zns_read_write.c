@@ -5,17 +5,17 @@
 #include "zns_ftl.h"
 
 static inline uint32_t __nr_lbas_from_rw_cmd(struct nvme_rw_command *cmd)
-{ NVMEV_DEBUG_TRACE(&__nr_lbas_from_rw_cmd);
+{
 	return cmd->length + 1;
 }
 
 static bool __check_boundary_error(struct zns_ftl *zns_ftl, uint64_t slba, uint32_t nr_lba)
-{ NVMEV_DEBUG_TRACE(&__check_boundary_error);
+{
 	return lba_to_zone(zns_ftl, slba) == lba_to_zone(zns_ftl, slba + nr_lba - 1);
 }
 
 static void __increase_write_ptr(struct zns_ftl *zns_ftl, uint32_t zid, uint32_t nr_lba)
-{ NVMEV_DEBUG_TRACE(&__increase_write_ptr);
+{
 	struct zone_descriptor *zone_descs = zns_ftl->zone_descs;
 	uint64_t cur_write_ptr = zone_descs[zid].wp;
 	uint64_t zone_capacity = zone_descs[zid].zone_capacity;
@@ -39,7 +39,7 @@ static void __increase_write_ptr(struct zns_ftl *zns_ftl, uint32_t zid, uint32_t
 }
 
 static inline struct ppa __lpn_to_ppa(struct zns_ftl *zns_ftl, uint64_t lpn)
-{ NVMEV_DEBUG_TRACE(&__lpn_to_ppa);
+{
 	struct ssdparams *spp = &zns_ftl->ssd->sp;
 	struct znsparams *zpp = &zns_ftl->zp;
 	uint64_t zone = lpn_to_zone(zns_ftl, lpn); // find corresponding zone
@@ -378,7 +378,7 @@ out:
 }
 
 bool zns_write(struct nvmev_ns *ns, struct nvmev_request *req, struct nvmev_result *ret)
-{ NVMEV_DEBUG_TRACE(&zns_write);
+{
 	struct zns_ftl *zns_ftl = (struct zns_ftl *)ns->ftls;
 	struct zone_descriptor *zone_descs = zns_ftl->zone_descs;
 	struct nvme_rw_command *cmd = &(req->cmd->rw);
@@ -396,7 +396,7 @@ bool zns_write(struct nvmev_ns *ns, struct nvmev_request *req, struct nvmev_resu
 }
 
 bool zns_read(struct nvmev_ns *ns, struct nvmev_request *req, struct nvmev_result *ret)
-{ NVMEV_DEBUG_TRACE(&zns_read);
+{
 	struct zns_ftl *zns_ftl = (struct zns_ftl *)ns->ftls;
 	struct ssdparams *spp = &zns_ftl->ssd->sp;
 	struct zone_descriptor *zone_descs = zns_ftl->zone_descs;

@@ -22,7 +22,8 @@ struct buffer;
 
 extern bool io_using_dma;
 
-static inline unsigned int __get_io_worker(int sqid)
+__attribute__((no_instrument_function))
+static inline unsigned int __get_io_worker_muted(int sqid)
 {
 #ifdef CONFIG_NVMEV_IO_WORKER_BY_SQ
 	return (sqid - 1) % nvmev_vdev->config.nr_io_workers;
@@ -31,9 +32,18 @@ static inline unsigned int __get_io_worker(int sqid)
 #endif
 }
 
-static inline unsigned long long __get_wallclock(void)
+static inline unsigned int __get_io_worker(int sqid) {
+    return __get_io_worker_muted(sqid);
+}
+
+__attribute__((no_instrument_function))
+static inline unsigned long long __get_wallclock_muted(void)
 {
 	return cpu_clock(nvmev_vdev->config.cpu_nr_dispatcher);
+}
+
+static inline unsigned long long __get_wallclock(void) {
+    return __get_wallclock_muted();
 }
 
 static inline size_t __cmd_io_offset(struct nvme_rw_command *cmd)
@@ -573,7 +583,7 @@ static int nvmev_io_worker(void *data)
 		   cpu_to_node(smp_processor_id()));
 
 	while (!kthread_should_stop()) {
-		unsigned long long curr_nsecs_wall = __get_wallclock();
+		unsigned long long curr_nsecs_wall = __get_wallclock_muted();
 		unsigned long long curr_nsecs_local = local_clock();
 		long long delta = curr_nsecs_wall - curr_nsecs_local;
 
@@ -657,7 +667,7 @@ static int nvmev_io_worker(void *data)
 			struct nvmev_completion_queue *cq = nvmev_vdev->cqes[qidx];
 
 #ifdef CONFIG_NVMEV_IO_WORKER_BY_SQ
-			if ((worker->id) != __get_io_worker(qidx))
+			if ((worker->id) != __get_io_worker_muted(qidx))
 				continue;
 #endif
 			if (cq == NULL || !cq->irq_enabled)
@@ -669,7 +679,7 @@ static int nvmev_io_worker(void *data)
 					prev_clock = local_clock();
 #endif
 					cq->interrupt_ready = false;
-					nvmev_signal_irq(cq->irq_vector);
+					nvmev_signal_irq_muted(cq->irq_vector);
 
 #ifdef PERF_DEBUG
 					intr_clock[qidx] += (local_clock() - prev_clock);

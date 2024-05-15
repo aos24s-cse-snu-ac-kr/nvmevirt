@@ -72,7 +72,8 @@ static void __process_msi_irq(int msi_index)
 }
 #endif
 
-void nvmev_signal_irq(int msi_index)
+__attribute__((no_instrument_function))
+void nvmev_signal_irq_muted(int msi_index)
 {
 	if (nvmev_vdev->pdev->msix_enabled) {
 		__process_msi_irq(msi_index);
@@ -81,6 +82,10 @@ void nvmev_signal_irq(int msi_index)
 
 		__signal_irq("int", nvmev_vdev->pdev->irq);
 	}
+}
+
+void nvmev_signal_irq(int msi_index) {
+    nvmev_signal_irq_muted(msi_index);
 }
 
 /*
@@ -97,6 +102,7 @@ void nvmev_signal_irq(int msi_index)
  *
  * Returns true if an event is processed.
  */
+__attribute__((no_instrument_function))
 bool nvmev_proc_bars(void)
 {
 	volatile struct __nvme_bar *old_bar = nvmev_vdev->old_bar;
@@ -136,6 +142,7 @@ bool nvmev_proc_bars(void)
 	}
 #endif
 	if (old_bar->aqa != bar->u_aqa) {
+        //NVMEV_DEBUG_TRACE(&nvmev_proc_bars);
 		// Initalize admin queue
 		NVMEV_DEBUG("%s: aqa 0x%x -> 0x%x\n", __func__, old_bar->aqa, bar->u_aqa);
 		old_bar->aqa = bar->u_aqa;
@@ -159,6 +166,7 @@ bool nvmev_proc_bars(void)
 		goto out;
 	}
 	if (old_bar->asq != bar->u_asq) {
+        //NVMEV_DEBUG_TRACE(&nvmev_proc_bars);
 		if (queue == NULL) {
 			/*
 			 * asq/acq can't be updated later than aqa, but in an unlikely case, this
@@ -196,6 +204,7 @@ bool nvmev_proc_bars(void)
 		goto out;
 	}
 	if (old_bar->acq != bar->u_acq) {
+        //NVMEV_DEBUG_TRACE(&nvmev_proc_bars);
 		if (queue == NULL) {
 			// See comment above
 			NVMEV_INFO("acq triggered before aqa, retrying\n");
@@ -228,6 +237,7 @@ bool nvmev_proc_bars(void)
 		goto out;
 	}
 	if (old_bar->cc != bar->u_cc) {
+        //NVMEV_DEBUG_TRACE(&nvmev_proc_bars);
 		NVMEV_DEBUG("%s: cc 0x%x:%x -> 0x%x:%x\n", __func__, old_bar->cc, old_bar->csts, bar->u_cc,
 			    bar->u_csts);
 		/* Enable */

@@ -113,7 +113,8 @@ static void init_lines(struct conv_ftl *conv_ftl)
 	struct line *line;
 	int i;
 
-	lm->tt_lines = spp->blks_per_pl;
+	//lm->tt_lines = spp->blks_per_pl;
+	lm->tt_lines = spp->blks_per_pl * spp->pls_per_lun; //junyupp, for multiplane
 	NVMEV_ASSERT(lm->tt_lines == spp->tt_lines);
 	lm->lines = vmalloc(sizeof(struct line) * lm->tt_lines);
 

@@ -103,6 +103,9 @@ static unsigned int __do_perform_io(int sqid, int sq_entry)
 
 		if (cmd->opcode == nvme_cmd_write ||
 		    cmd->opcode == nvme_cmd_zone_append) {
+      // @hk actual IO is done w/ slba (no line/lun/blk/page involved)
+      // @hk  `nvmev_vdev->ns[nsid].mapped`:  @see `conv_init_namespace()`, `NVMEV_NAMESPACE_INIT()`, `NVMEV_STORAGE_INIT()`
+      // @hk  `offset`:                       @see `__cmd_io_offset()`
 			memcpy(nvmev_vdev->ns[nsid].mapped + offset, vaddr + mem_offs, io_size);
 		} else if (cmd->opcode == nvme_cmd_read) {
 			memcpy(vaddr + mem_offs, nvmev_vdev->ns[nsid].mapped + offset, io_size);
@@ -258,7 +261,6 @@ static void __insert_req_sorted(unsigned int entry, struct nvmev_io_worker *work
 		} else { /* In between */
 			worker->work_queue[entry].prev = curr;
 			worker->work_queue[entry].next = worker->work_queue[curr].next;
-
 			worker->work_queue[worker->work_queue[entry].next].prev = entry;
 			worker->work_queue[curr].next = entry;
 		}
@@ -443,6 +445,8 @@ static size_t __nvmev_proc_io(int sqid, int sq_entry, size_t *io_size)
 	static unsigned long long counter = 0;
 #endif
 
+  // @hk `ns->proc_io_cmd()` == `conv_proc_nvme_io_cmd()` for conv ssd mode
+  // @hk @see `conv_init_namespace()`
 	if (!ns->proc_io_cmd(ns, &req, &ret))
 		return false;
 	*io_size = __cmd_io_size(&sq_entry(sq_entry).rw);
@@ -500,6 +504,7 @@ int nvmev_proc_io_sq(int sqid, int new_db, int old_db)
 		if (++sq_entry == sq->queue_size) {
 			sq_entry = 0;
 		}
+    // @hk sq->stat usage?
 		sq->stat.nr_dispatched++;
 		sq->stat.nr_in_flight++;
 		sq->stat.total_io += io_size;

@@ -59,7 +59,38 @@ static inline size_t __cmd_io_size(struct nvme_rw_command *cmd)
 static unsigned int __do_perform_io(int sqid, int sq_entry)
 {
 	struct nvmev_submission_queue *sq = nvmev_vdev->sqes[sqid];
+  /**
+    NVMEV_INFO("----- BEGIN SQ INFO -----");
+    NVMEV_INFO("sq_entry:             %d", sq_entry);
+    NVMEV_INFO("PAGE_SIZE:            %d", PAGE_SIZE);
+    NVMEV_INFO("sizeof(nvme_command): %d", sizeof(struct nvme_command));
+    NVMEV_INFO("sq index #0:          %d (%d / (%d / %d))", (sq_entry / (PAGE_SIZE / sizeof(struct nvme_command))), sq_entry, PAGE_SIZE, sizeof(struct nvme_command));
+    NVMEV_INFO("sq index #1:          %d (%d %% (%d / %d))", (sq_entry % (PAGE_SIZE / sizeof(struct nvme_command))), sq_entry, PAGE_SIZE, sizeof(struct nvme_command));
+    NVMEV_INFO("sq index:             sq[%d][%d]", (sq_entry / (PAGE_SIZE / sizeof(struct nvme_command))), (sq_entry % (PAGE_SIZE / sizeof(struct nvme_command))));
+    NVMEV_INFO("----- END SQ INFO -----");
+   */
+
 	struct nvme_rw_command *cmd = &sq_entry(sq_entry).rw;
+  /**
+    NVMEV_INFO("----- BEGIN CMD INFO -----");
+    NVMEV_INFO("__u8    opcode;       %02x",    cmd->opcode);
+    NVMEV_INFO("__u8    flags;        %02x",    cmd->flags);
+    NVMEV_INFO("__u16   command_id;   %04x",    cmd->command_id);
+    NVMEV_INFO("__le32  nsid;         %08x",    cmd->nsid);
+    NVMEV_INFO("__u64   rsvd2;        %016lx",  cmd->rsvd2);
+    NVMEV_INFO("__le64  metadata;     %016lx",  cmd->metadata);
+    NVMEV_INFO("__le64  prp1;         %016lx",  cmd->prp1);
+    NVMEV_INFO("__le64  prp2;         %016lx",  cmd->prp2);
+    NVMEV_INFO("__le64  slba;         %016lx",  cmd->slba);
+    NVMEV_INFO("__le16  length;       %04x",    cmd->length);
+    NVMEV_INFO("__le16  control;      %04x",    cmd->control);
+    NVMEV_INFO("__le32  dsmgmt;       %08x",    cmd->dsmgmt);
+    NVMEV_INFO("__le32  reftag;       %08x",    cmd->reftag);
+    NVMEV_INFO("__le16  apptag;       %04x",    cmd->apptag);
+    NVMEV_INFO("__le16  appmask;      %04x",    cmd->appmask);
+    NVMEV_INFO("----- END CMD INFO -----");
+   */
+
 	size_t offset;
 	size_t length, remaining;
 	int prp_offs = 0;
@@ -106,6 +137,13 @@ static unsigned int __do_perform_io(int sqid, int sq_entry)
       // @hk actual IO is done w/ slba (no line/lun/blk/page involved)
       // @hk  `nvmev_vdev->ns[nsid].mapped`:  @see `conv_init_namespace()`, `NVMEV_NAMESPACE_INIT()`, `NVMEV_STORAGE_INIT()`
       // @hk  `offset`:                       @see `__cmd_io_offset()`
+      /**
+        NVMEV_INFO("----- BEGIN MEMCPY INFO -----");
+        NVMEV_INFO("src:    ns[].mapped + offset:   %p (%p + %zu)", nvmev_vdev->ns[nsid].mapped + offset, nvmev_vdev->ns[nsid].mapped, offset);
+        NVMEV_INFO("dst:    vaddr + mem_offs:       %p (%p + %zu)", vaddr + mem_offs, vaddr, mem_offs);
+        NVMEV_INFO("size:   io_size:                %zu", io_size);
+        NVMEV_INFO("----- END MEMCPY INFO -----");
+       */
 			memcpy(nvmev_vdev->ns[nsid].mapped + offset, vaddr + mem_offs, io_size);
 		} else if (cmd->opcode == nvme_cmd_read) {
 			memcpy(vaddr + mem_offs, nvmev_vdev->ns[nsid].mapped + offset, io_size);

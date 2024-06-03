@@ -180,11 +180,16 @@ static struct line *get_next_free_line(struct conv_ftl *conv_ftl)
 	return curline;
 }
 
-static struct write_pointer *__get_wp(struct conv_ftl *ftl, uint32_t io_type)
+// @hk-TODO need to process wp per RUH ID
+static struct write_pointer *__get_wp(struct conv_ftl *ftl, uint32_t ruh_id, uint32_t io_type)
 {
 	if (io_type == USER_IO) {
-		return &ftl->wp;
+		// @hk return &ftl->wp;
+		return &ftl->wp[ruh_id];
 	} else if (io_type == GC_IO) {
+		// @hk-TODO:
+		// Use single GC write pointer for 'Initially Isolated' mode
+		// Change to array to support 'Persistently Isolated' mode
 		return &ftl->gc_wp;
 	}
 
@@ -192,9 +197,11 @@ static struct write_pointer *__get_wp(struct conv_ftl *ftl, uint32_t io_type)
 	return NULL;
 }
 
+// @hk used in init process only
 static void prepare_write_pointer(struct conv_ftl *conv_ftl, uint32_t io_type)
 {
-	struct write_pointer *wp = __get_wp(conv_ftl, io_type);
+	// @hk-TODO init all lines per handle
+	struct write_pointer *wp = __get_wp(conv_ftl, 0, io_type);
 	struct line *curline = get_next_free_line(conv_ftl);
 
 	NVMEV_ASSERT(wp);
@@ -215,13 +222,15 @@ static void advance_write_pointer(struct conv_ftl *conv_ftl, uint32_t io_type)
 {
 	struct ssdparams *spp = &conv_ftl->ssd->sp;
 	struct line_mgmt *lm = &conv_ftl->lm;
-	struct write_pointer *wpp = __get_wp(conv_ftl, io_type);
+	struct write_pointer *wpp = __get_wp(conv_ftl, 0, io_type);
 
-	NVMEV_DEBUG_VERBOSE("current wpp: ch:%d, lun:%d, pl:%d, blk:%d, pg:%d\n",
+	// NVMEV_DEBUG_VERBOSE("current wpp: ch:%d, lun:%d, pl:%d, blk:%d, pg:%d\n",
+	NVMEV_INFO("current wpp: ftl: %p, ch:%d, lun:%d, pl:%d, blk:%d, pg:%d\n", conv_ftl,
 			wpp->ch, wpp->lun, wpp->pl, wpp->blk, wpp->pg);
 
 	check_addr(wpp->pg, spp->pgs_per_blk);
 	wpp->pg++;
+	// spp->pgs_per_oneshotpg == 0
 	if ((wpp->pg % spp->pgs_per_oneshotpg) != 0)
 		goto out;
 
@@ -275,6 +284,7 @@ static void advance_write_pointer(struct conv_ftl *conv_ftl, uint32_t io_type)
 	/* TODO: assume # of pl_per_lun is 1, fix later */
 	NVMEV_ASSERT(wpp->pl == 0);
 out:
+	NVMEV_INFO("changed wpp: ftl: %p, ch:%d, lun:%d, pl:%d, blk:%d, pg:%d (curline %d)\n", conv_ftl, wpp->ch, wpp->lun, wpp->pl, wpp->blk, wpp->pg, wpp->curline->id);
 	NVMEV_DEBUG_VERBOSE("advanced wpp: ch:%d, lun:%d, pl:%d, blk:%d, pg:%d (curline %d)\n",
 			wpp->ch, wpp->lun, wpp->pl, wpp->blk, wpp->pg, wpp->curline->id);
 }
@@ -282,7 +292,11 @@ out:
 static struct ppa get_new_page(struct conv_ftl *conv_ftl, uint32_t io_type)
 {
 	struct ppa ppa;
-	struct write_pointer *wp = __get_wp(conv_ftl, io_type);
+	struct write_pointer *wp = __get_wp(conv_ftl, 0, io_type);
+
+	// NVMEV_DEBUG_VERBOSE("get_new_page: ch:%d, lun:%d, pl:%d, blk:%d, pg:%d (curline %d)\n",
+	NVMEV_INFO("get_new_page: ftl: %p, ch:%d, lun:%d, pl:%d, blk:%d, pg:%d (curline %d)\n", conv_ftl,
+			wp->ch, wp->lun, wp->pl, wp->blk, wp->pg, wp->curline->id);
 
 	ppa.ppa = 0;
 	ppa.g.ch = wp->ch;
@@ -393,7 +407,7 @@ void conv_init_namespace(struct nvmev_ns *ns, uint32_t id, uint64_t size, void *
 		conv_init_ftl(&conv_ftls[i], &cpp, ssd);
 	}
 
-	/* PCIe, Write buffer are shared by all instances*/
+	/* PCIe, Write buffer are shared by all instances (aka. partitions, FTLs)*/
 	for (i = 1; i < nr_parts; i++) {
 		kfree(conv_ftls[i].ssd->pcie->perf_model);
 		kfree(conv_ftls[i].ssd->pcie);

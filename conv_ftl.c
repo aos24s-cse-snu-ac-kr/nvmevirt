@@ -19,7 +19,7 @@ static bool should_gc(struct conv_ftl *conv_ftl)
 
 static inline bool should_gc_high(struct conv_ftl *conv_ftl)
 {
-	return conv_ftl->lm.free_line_cnt <= conv_ftl->cp.gc_thres_lines_high;
+	return (conv_ftl->lm.free_line_cnt <= conv_ftl->cp.gc_thres_lines_high);
 }
 
 static inline struct ppa get_maptbl_ent(struct conv_ftl *conv_ftl, uint64_t lpn)
@@ -409,7 +409,7 @@ void conv_init_namespace(struct nvmev_ns *ns, uint32_t id, uint64_t size, void *
 	ns->ftls = (void *)conv_ftls;
 	ns->size = (uint64_t)((size * 100) / cpp.pba_pcent);
 	ns->mapped = mapped_addr;
-	/*register io command handler*/
+	// @see `__nvmev_proc_io()`
 	ns->proc_io_cmd = conv_proc_nvme_io_cmd;
 
 	NVMEV_INFO("FTL physical space: %lld, logical space: %lld (physical/logical * 100 = %d)\n",
@@ -500,20 +500,20 @@ static void mark_page_invalid(struct conv_ftl *conv_ftl, struct ppa *ppa)
 
 	/* update corresponding block status */
 	blk = get_blk(conv_ftl->ssd, ppa);
-	NVMEV_ASSERT(blk->ipc >= 0 && blk->ipc < spp->pgs_per_blk);
-	blk->ipc++;
-	NVMEV_ASSERT(blk->vpc > 0 && blk->vpc <= spp->pgs_per_blk);
-	blk->vpc--;
+	NVMEV_ASSERT(0 <= blk->ipc && blk->ipc < spp->pgs_per_blk);
+	blk->ipc++; // Increase invalid count
+	NVMEV_ASSERT(0 < blk->vpc && blk->vpc <= spp->pgs_per_blk);
+	blk->vpc--; // Decrease valid count
 
 	/* update corresponding line status */
 	line = get_line(conv_ftl, ppa);
-	NVMEV_ASSERT(line->ipc >= 0 && line->ipc < spp->pgs_per_line);
+	NVMEV_ASSERT(0 <= line->ipc && line->ipc < spp->pgs_per_line);
 	if (line->vpc == spp->pgs_per_line) {
 		NVMEV_ASSERT(line->ipc == 0);
 		was_full_line = true;
 	}
 	line->ipc++;
-	NVMEV_ASSERT(line->vpc > 0 && line->vpc <= spp->pgs_per_line);
+	NVMEV_ASSERT(0 < line->vpc && line->vpc <= spp->pgs_per_line);
 	/* Adjust the position of the victime line in the pq under over-writes */
 	if (line->pos) {
 		/* Note that line->vpc will be updated by this call */
@@ -749,6 +749,7 @@ static void mark_line_free(struct conv_ftl *conv_ftl, struct ppa *ppa)
 	lm->free_line_cnt++;
 }
 
+// @hk do GC here
 static int do_gc(struct conv_ftl *conv_ftl, bool force)
 {
 	struct line *victim_line = NULL;
@@ -814,7 +815,8 @@ static int do_gc(struct conv_ftl *conv_ftl, bool force)
 static void foreground_gc(struct conv_ftl *conv_ftl)
 {
 	if (should_gc_high(conv_ftl)) {
-		NVMEV_DEBUG_VERBOSE("should_gc_high passed");
+		// NVMEV_DEBUG_VERBOSE("should_gc_high passed");
+		NVMEV_WARN("should_gc_high passed");
 		/* perform GC here until !should_gc(conv_ftl) */
 		do_gc(conv_ftl, true);
 	}
@@ -937,6 +939,7 @@ static bool conv_write(struct nvmev_ns *ns, struct nvmev_request *req, struct nv
 	uint64_t end_lpn = (lba + nr_lba - 1) / spp->secs_per_pg;
 
 	uint64_t lpn;
+	// @hk nr_parts == 4 for 970PRO --> set 1
 	uint32_t nr_parts = ns->nr_parts;
 
 	uint64_t nsecs_latest;
@@ -950,13 +953,18 @@ static bool conv_write(struct nvmev_ns *ns, struct nvmev_request *req, struct nv
 		.xfer_size = spp->pgsz * spp->pgs_per_oneshotpg,
 	};
 
-	NVMEV_DEBUG_VERBOSE("%s: start_lpn=%lld, len=%lld, end_lpn=%lld", __func__, start_lpn, nr_lba, end_lpn);
+	// @hk NVMEV_DEBUG_VERBOSE("%s: start_lpn=%lld, len=%lld, end_lpn=%lld", __func__, start_lpn, nr_lba, end_lpn);
+	// @hk For -s 7, -z 65536:
+	// @hk Logical Page: 16 (4KiB per l-page)
+	// @hk LBA len: 128 (512byte per page)
+	NVMEV_INFO("%s: lba=%lld, start_lpn=%lld, len=%lld, end_lpn=%lld", __func__, lba, start_lpn, nr_lba, end_lpn);
 	if ((end_lpn / nr_parts) >= spp->tt_pgs) {
 		NVMEV_ERROR("%s: lpn passed FTL range (start_lpn=%lld > tt_pgs=%ld)\n",
 				__func__, start_lpn, spp->tt_pgs);
 		return false;
 	}
 
+	// @hk ?buffer
 	allocated_buf_size = buffer_allocate(wbuf, LBA_TO_BYTE(nr_lba));
 	if (allocated_buf_size < LBA_TO_BYTE(nr_lba))
 		return false;
@@ -968,14 +976,16 @@ static bool conv_write(struct nvmev_ns *ns, struct nvmev_request *req, struct nv
 	swr.stime = nsecs_latest;
 
 	for (lpn = start_lpn; lpn <= end_lpn; lpn++) {
+		NVMEV_INFO("----- BEGIN PROCESSING LPN -----");
 		uint64_t local_lpn;
 		uint64_t nsecs_completed = 0;
 		struct ppa ppa;
 
 		conv_ftl = &conv_ftls[lpn % nr_parts];
 		local_lpn = lpn / nr_parts;
-		ppa = get_maptbl_ent(
-			conv_ftl, local_lpn); // Check whether the given LPN has been written before
+
+		/* Check whether the given LPN has been written before */
+		ppa = get_maptbl_ent(conv_ftl, local_lpn);
 		if (mapped_ppa(&ppa)) {
 			/* update old page information first */
 			mark_page_invalid(conv_ftl, &ppa);
@@ -984,16 +994,19 @@ static bool conv_write(struct nvmev_ns *ns, struct nvmev_request *req, struct nv
 		}
 
 		/* new write */
+		// @hk-TODO get page for the write w/ RUH_ID
 		ppa = get_new_page(conv_ftl, USER_IO);
 		/* update maptbl */
 		set_maptbl_ent(conv_ftl, local_lpn, &ppa);
-		NVMEV_DEBUG("%s: got new ppa %lld, ", __func__, ppa2pgidx(conv_ftl, &ppa));
+		// @hk NVMEV_DEBUG("%s: got new ppa %lld, ", __func__, ppa2pgidx(conv_ftl, &ppa));
+		NVMEV_INFO("%s: got new ppa %lld, ", __func__, ppa2pgidx(conv_ftl, &ppa));
 		/* update rmap */
 		set_rmap_ent(conv_ftl, local_lpn, &ppa);
 
 		mark_page_valid(conv_ftl, &ppa);
 
 		/* need to advance the write pointer here */
+		// @hk advance wp: same as move wp
 		advance_write_pointer(conv_ftl, USER_IO);
 
 		/* Aggregate write io in flash page */
@@ -1007,10 +1020,13 @@ static bool conv_write(struct nvmev_ns *ns, struct nvmev_request *req, struct nv
 						    spp->pgs_per_oneshotpg * spp->pgsz);
 		}
 
+		// @hk reduce write credit & GC when write credit is 0
 		consume_write_credit(conv_ftl);
 		check_and_refill_write_credit(conv_ftl);
+		NVMEV_INFO("----- END PROCESSING LPN -----");
 	}
 
+	// @hk set completion time
 	if ((cmd->rw.control & NVME_RW_FUA) || (spp->write_early_completion == 0)) {
 		/* Wait all flash operations */
 		ret->nsecs_target = nsecs_latest;

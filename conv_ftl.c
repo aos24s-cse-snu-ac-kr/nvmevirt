@@ -200,56 +200,43 @@ static struct write_pointer *__get_wp(struct conv_ftl *ftl, uint32_t ruh_id, uin
 }
 
 // @hk
+static void prepare_an_write_pointer(struct conv_ftl *conv_ftl, uint32_t ruh_id, uint32_t io_type) {
+	struct write_pointer *wp = __get_wp(conv_ftl, ruh_id, io_type);
+	struct line *curline = get_next_free_line(conv_ftl);
+
+	NVMEV_ASSERT(wp);
+	NVMEV_ASSERT(curline);
+
+	// wp->curline is always our next-to-write super-block
+	*wp = (struct write_pointer){
+		.curline = curline,
+		.ch = 0,
+		.lun = 0,
+		.pg = 0,
+		.blk = curline->id,
+		.pl = 0,
+	};
+}
+
+// @hk
 // Allocate free line and initiate values to WPs
 // Note that this func is used in init process only
 static void prepare_write_pointer(struct conv_ftl *conv_ftl, uint32_t io_type)
 {
-	/*
 	if (io_type == USER_IO) {
 		// @hk
 		// KMAlloc for WP array
-		&ftl->wps = kmalloc(sizeof(struct conv_ftl) * nr_parts, GFP_KERNEL);
 		// @hk-TODO:
 		// Assume that the total RUH count equals 8
 		// Refactor this to be configurable via macro
+		conv_ftl->wps = kmalloc(sizeof(struct write_pointer) * 8, GFP_KERNEL);
 		for (int i = 0; i < 8; i++) {
-			struct write_pointer *wp = __get_wp(conv_ftl, i, io_type);
-			struct line *curline = get_next_free_line(conv_ftl);
-
-			NVMEV_ASSERT(wp);
-			NVMEV_ASSERT(curline);
-
-			// wp->curline is always our next-to-write super-block
-			*wp = (struct write_pointer){
-				.curline = curline,
-				.ch = 0,
-				.lun = 0,
-				.pg = 0,
-				.blk = curline->id,
-				.pl = 0,
-			};
+			prepare_an_write_pointer(conv_ftl, i, io_type);
 		}
 	} else if (io_type == GC_IO) {
-	*/
 		// @hk: Use '0' for dummy param (not used in __get_wp)
-		struct write_pointer *wp = __get_wp(conv_ftl, 0, io_type);
-		struct line *curline = get_next_free_line(conv_ftl);
-
-		NVMEV_ASSERT(wp);
-		NVMEV_ASSERT(curline);
-
-		/* wp->curline is always our next-to-write super-block */
-		*wp = (struct write_pointer){
-			.curline = curline,
-			.ch = 0,
-			.lun = 0,
-			.pg = 0,
-			.blk = curline->id,
-			.pl = 0,
-		};
-	/*
+		prepare_an_write_pointer(conv_ftl, 0, io_type);
 	}
-	*/
 }
 
 static void advance_write_pointer(struct conv_ftl *conv_ftl, uint32_t io_type)

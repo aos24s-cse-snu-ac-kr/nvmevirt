@@ -239,11 +239,11 @@ static void prepare_write_pointer(struct conv_ftl *conv_ftl, uint32_t io_type)
 	}
 }
 
-static void advance_write_pointer(struct conv_ftl *conv_ftl, uint32_t io_type)
+static void advance_write_pointer(struct conv_ftl *conv_ftl, uint16_t ruh_id, uint32_t io_type)
 {
 	struct ssdparams *spp = &conv_ftl->ssd->sp;
 	struct line_mgmt *lm = &conv_ftl->lm;
-	struct write_pointer *wpp = __get_wp(conv_ftl, 0, io_type);
+	struct write_pointer *wpp = __get_wp(conv_ftl, ruh_id, io_type);
 
 	// NVMEV_DEBUG_VERBOSE("current wpp: ch:%d, lun:%d, pl:%d, blk:%d, pg:%d\n",
 	NVMEV_INFO("current wpp: ftl: %p, ch:%d, lun:%d, pl:%d, blk:%d, pg:%d\n", conv_ftl,
@@ -651,7 +651,9 @@ static uint64_t gc_write_page(struct conv_ftl *conv_ftl, struct ppa *old_ppa)
 	mark_page_valid(conv_ftl, &new_ppa);
 
 	/* need to advance the write pointer here */
-	advance_write_pointer(conv_ftl, GC_IO);
+	// @hk: RUH_ID(0) is just dummy param as GC_IO doesn't require that
+	// @see __get_wp()
+	advance_write_pointer(conv_ftl, 0, GC_IO);
 
 	if (cpp->enable_gc_delay) {
 		struct nand_cmd gcw = {
@@ -1048,7 +1050,7 @@ static bool conv_write(struct nvmev_ns *ns, struct nvmev_request *req, struct nv
 
 		/* need to advance the write pointer here */
 		// @hk advance wp: same as move wp
-		advance_write_pointer(conv_ftl, USER_IO);
+		advance_write_pointer(conv_ftl, ruh_id, USER_IO);
 
 		/* Aggregate write io in flash page */
 		if (last_pg_in_wordline(conv_ftl, &ppa)) {

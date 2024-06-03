@@ -62,7 +62,7 @@ struct conv_ftl {
 	struct ppa *maptbl; /* page level mapping table */
 	uint64_t *rmap; /* reverse mapptbl, assume it's stored in OOB */
 	// @hk struct write_pointer wp;
-	struct write_pointer *wp;
+	struct write_pointer *wps;
 	struct write_pointer gc_wp;
 	struct line_mgmt lm;
 	struct write_flow_control wfc;

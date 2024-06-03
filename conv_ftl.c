@@ -310,10 +310,12 @@ out:
 			wpp->ch, wpp->lun, wpp->pl, wpp->blk, wpp->pg, wpp->curline->id);
 }
 
-static struct ppa get_new_page(struct conv_ftl *conv_ftl, uint32_t io_type)
+// @hk
+// func `get_new_page` actually is "converting" from WP to PPA.
+static struct ppa get_new_page(struct conv_ftl *conv_ftl, uint16_t ruh_id, uint32_t io_type)
 {
 	struct ppa ppa;
-	struct write_pointer *wp = __get_wp(conv_ftl, 0, io_type);
+	struct write_pointer *wp = __get_wp(conv_ftl, ruh_id, io_type);
 
 	// NVMEV_DEBUG_VERBOSE("get_new_page: ch:%d, lun:%d, pl:%d, blk:%d, pg:%d (curline %d)\n",
 	NVMEV_INFO("get_new_page: ftl: %p, ch:%d, lun:%d, pl:%d, blk:%d, pg:%d (curline %d)\n", conv_ftl,
@@ -575,6 +577,7 @@ static void mark_page_valid(struct conv_ftl *conv_ftl, struct ppa *ppa)
 
 	/* update page status */
 	pg = get_pg(conv_ftl->ssd, ppa);
+	//NVMEV_INFO("%d\n", pg->status);
 	NVMEV_ASSERT(pg->status == PG_FREE);
 	pg->status = PG_VALID;
 
@@ -637,7 +640,9 @@ static uint64_t gc_write_page(struct conv_ftl *conv_ftl, struct ppa *old_ppa)
 	uint64_t lpn = get_rmap_ent(conv_ftl, old_ppa);
 
 	NVMEV_ASSERT(valid_lpn(conv_ftl, lpn));
-	new_ppa = get_new_page(conv_ftl, GC_IO);
+	// @hk: RUH_ID(0) is just dummy param as GC_IO doesn't require that
+	// @see __get_wp()
+	new_ppa = get_new_page(conv_ftl, 0, GC_IO);
 	/* update maptbl */
 	set_maptbl_ent(conv_ftl, lpn, &new_ppa);
 	/* update rmap */
@@ -968,6 +973,7 @@ static bool conv_write(struct nvmev_ns *ns, struct nvmev_request *req, struct nv
 	struct buffer *wbuf = conv_ftl->ssd->write_buffer;
 
 	struct nvme_command *cmd = req->cmd;
+	uint16_t ruh_id = (cmd->rw.dsmgmt) >> 16;
 	uint64_t lba = cmd->rw.slba;
 	uint64_t nr_lba = (cmd->rw.length + 1);
 	uint64_t start_lpn = lba / spp->secs_per_pg;
@@ -1030,7 +1036,7 @@ static bool conv_write(struct nvmev_ns *ns, struct nvmev_request *req, struct nv
 
 		/* new write */
 		// @hk-TODO get page for the write w/ RUH_ID
-		ppa = get_new_page(conv_ftl, USER_IO);
+		ppa = get_new_page(conv_ftl, ruh_id, USER_IO);
 		/* update maptbl */
 		set_maptbl_ent(conv_ftl, local_lpn, &ppa);
 		// @hk NVMEV_DEBUG("%s: got new ppa %lld, ", __func__, ppa2pgidx(conv_ftl, &ppa));

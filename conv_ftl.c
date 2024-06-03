@@ -183,7 +183,7 @@ static struct line *get_next_free_line(struct conv_ftl *conv_ftl)
 
 // @hk
 // Returns current WPs for RUH in FTL
-static struct write_pointer *__get_wp(struct conv_ftl *ftl, uint32_t ruh_id, uint32_t io_type)
+static struct write_pointer *__get_wp(struct conv_ftl *ftl, uint16_t ruh_id, uint32_t io_type)
 {
 	if (io_type == USER_IO) {
 		// @hk return &ftl->wp;
@@ -200,7 +200,7 @@ static struct write_pointer *__get_wp(struct conv_ftl *ftl, uint32_t ruh_id, uin
 }
 
 // @hk
-static void prepare_an_write_pointer(struct conv_ftl *conv_ftl, uint32_t ruh_id, uint32_t io_type) {
+static void prepare_an_write_pointer(struct conv_ftl *conv_ftl, uint16_t ruh_id, uint32_t io_type) {
 	struct write_pointer *wp = __get_wp(conv_ftl, ruh_id, io_type);
 	struct line *curline = get_next_free_line(conv_ftl);
 

@@ -2,8 +2,8 @@
 
 DIRNAME=/home/toor/nvmevirt
 
-MEMMAP_START=4
-MEMMAP_SIZE=4
+MEMMAP_START=7
+MEMMAP_SIZE=1
 
 cd $DIRNAME
 make \

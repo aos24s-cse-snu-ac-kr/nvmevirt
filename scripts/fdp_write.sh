@@ -2,7 +2,7 @@
 
 DEV=/dev/nvme1n1
 SLBA=128
-SIZE_BYTE=$(( 4 * 4 * 1024 ))
+SIZE_BYTE=$(( 16 * 4 * 1024 ))
 RUH=${1:-'0'}
 
 curl https://en.wikipedia.org/wiki/Adaptive_replacement_cache 2>/dev/null \

@@ -1,7 +1,7 @@
 #!/bin/sh
 
-MEMMAP_START=$1
-MEMMAP_SIZE=$2
+MEMMAP_START=7
+MEMMAP_SIZE=1
 
 sudo sed -Ei \
     's|^GRUB_CMDLINE_LINUX="(.*)"$|GRUB_CMDLINE_LINUX="memmap='$MEMMAP_SIZE'G\\\\\\$'$MEMMAP_START'G"|g' \

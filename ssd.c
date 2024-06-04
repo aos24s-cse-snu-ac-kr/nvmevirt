@@ -169,6 +169,7 @@ void ssd_init_params(struct ssdparams *spp, uint64_t capacity, uint32_t nparts)
 		BYTE_TO_KB(spp->pgs_per_line * spp->pgsz));
 }
 
+__attribute__((no_instrument_function))
 static void ssd_init_nand_page(struct nand_page *pg, struct ssdparams *spp)
 {
 	int i;
@@ -180,11 +181,13 @@ static void ssd_init_nand_page(struct nand_page *pg, struct ssdparams *spp)
 	pg->status = PG_FREE;
 }
 
+__attribute__((no_instrument_function))
 static void ssd_remove_nand_page(struct nand_page *pg)
 {
 	kfree(pg->sec);
 }
 
+__attribute__((no_instrument_function))
 static void ssd_init_nand_blk(struct nand_block *blk, struct ssdparams *spp)
 {
 	int i;
@@ -199,6 +202,7 @@ static void ssd_init_nand_blk(struct nand_block *blk, struct ssdparams *spp)
 	blk->wp = 0;
 }
 
+__attribute__((no_instrument_function))
 static void ssd_remove_nand_blk(struct nand_block *blk)
 {
 	int i;

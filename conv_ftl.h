@@ -61,7 +61,7 @@ struct conv_ftl {
 	struct convparams cp;
 	struct ppa *maptbl; /* page level mapping table */
 	uint64_t *rmap; /* reverse mapptbl, assume it's stored in OOB */
-	// @hk Make write pointer to be array
+	// @hk: Make write pointer to be array
 	// struct write_pointer wp;
 	struct write_pointer *wps;
 	struct write_pointer gc_wp;

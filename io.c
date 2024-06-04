@@ -61,7 +61,7 @@ static unsigned int __do_perform_io(int sqid, int sq_entry)
 	struct nvmev_submission_queue *sq = nvmev_vdev->sqes[sqid];
 
 	/**
-	@hk sq debug logs
+	@hk: sq debug logs
 	NVMEV_INFO("----- BEGIN SQ INFO -----");
 	NVMEV_INFO("sq_entry:             %d", sq_entry);
 	NVMEV_INFO("PAGE_SIZE:            %d", PAGE_SIZE);
@@ -75,7 +75,7 @@ static unsigned int __do_perform_io(int sqid, int sq_entry)
 	struct nvme_rw_command *cmd = &sq_entry(sq_entry).rw;
 
 	/**
-	@hk cmd debug logs
+	@hk: cmd debug logs
 	NVMEV_INFO("----- BEGIN CMD INFO -----");
 	NVMEV_INFO("__u8    opcode;       %02x",    cmd->opcode);
 	NVMEV_INFO("__u8    flags;        %02x",    cmd->flags);
@@ -138,7 +138,7 @@ static unsigned int __do_perform_io(int sqid, int sq_entry)
 
 		if (cmd->opcode == nvme_cmd_write ||
 		    cmd->opcode == nvme_cmd_zone_append) {
-			// @hk
+			// @hk:
 			// Actual IO is done w/ slba (no line/lun/blk/page involved)
 			// `nvmev_vdev->ns[nsid].mapped`:  @see `conv_init_namespace()`, `NVMEV_NAMESPACE_INIT()`, `NVMEV_STORAGE_INIT()`
 			// `offset`:                       @see `__cmd_io_offset()`
@@ -550,7 +550,7 @@ int nvmev_proc_io_sq(int sqid, int new_db, int old_db)
 		if (++sq_entry == sq->queue_size) {
 			sq_entry = 0;
 		}
-		// @hk sq->stat usage?
+		// @hk: sq->stat usage?
 		sq->stat.nr_dispatched++;
 		sq->stat.nr_in_flight++;
 		sq->stat.total_io += io_size;

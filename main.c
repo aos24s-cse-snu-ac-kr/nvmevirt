@@ -122,14 +122,14 @@ static bool nvmev_proc_dbs(void)
 	bool updated = false;
 
 	// Admin queue
-	// - Submission queue: Doorbell index [0]
+	// @hk: Submission queue: Doorbell index [0]
 	new_db = nvmev_vdev->dbs[0];
 	if (new_db != nvmev_vdev->old_dbs[0]) {
 		nvmev_proc_admin_sq(new_db, nvmev_vdev->old_dbs[0]);
 		nvmev_vdev->old_dbs[0] = new_db;
 		updated = true;
 	}
-	// - Completion queue: Doorbell index [1]
+	// @hk: Completion queue: Doorbell index [1]
 	new_db = nvmev_vdev->dbs[1];
 	if (new_db != nvmev_vdev->old_dbs[1]) {
 		nvmev_proc_admin_cq(new_db, nvmev_vdev->old_dbs[1]);
@@ -138,7 +138,7 @@ static bool nvmev_proc_dbs(void)
 	}
 
 	// IO queue
-	// - Submission queues: Doorbell index [even]
+	// @hk: Submission queues: Doorbell index [even]
 	for (qid = 1; qid <= nvmev_vdev->nr_sq; qid++) {
 		if (nvmev_vdev->sqes[qid] == NULL)
 			continue;
@@ -151,7 +151,7 @@ static bool nvmev_proc_dbs(void)
 		}
 	}
 
-	// - Completion queues: Doorbell index [odd]
+	// @hk: Completion queues: Doorbell index [odd]
 	for (qid = 1; qid <= nvmev_vdev->nr_cq; qid++) {
 		if (nvmev_vdev->cqes[qid] == NULL)
 			continue;

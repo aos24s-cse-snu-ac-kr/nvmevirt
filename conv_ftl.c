@@ -746,6 +746,7 @@ static void clean_one_flashpg(struct conv_ftl *conv_ftl, struct ppa *ppa)
 	uint64_t completed_time = 0;
 	struct ppa ppa_copy = *ppa;
 
+	// @hk: Count valid 4K_pages in nand_page
 	for (i = 0; i < spp->pgs_per_flashpg; i++) {
 		pg_iter = get_pg(conv_ftl->ssd, &ppa_copy);
 		/* there shouldn't be any free page in victim blocks */
@@ -761,6 +762,7 @@ static void clean_one_flashpg(struct conv_ftl *conv_ftl, struct ppa *ppa)
 	if (cnt <= 0)
 		return;
 
+	// @hk: Calc delay
 	if (cpp->enable_gc_delay) {
 		struct nand_cmd gcr = {
 			.type = GC_IO,
@@ -773,6 +775,7 @@ static void clean_one_flashpg(struct conv_ftl *conv_ftl, struct ppa *ppa)
 		completed_time = ssd_advance_nand(conv_ftl->ssd, &gcr);
 	}
 
+	// @hk: Move 4K_pages
 	for (i = 0; i < spp->pgs_per_flashpg; i++) {
 		pg_iter = get_pg(conv_ftl->ssd, &ppa_copy);
 
@@ -823,6 +826,7 @@ static int do_gc(struct conv_ftl *conv_ftl, bool force)
 	for (flashpg = 0; flashpg < spp->flashpgs_per_blk; flashpg++) {
 		int ch, lun;
 
+		// @hk: point first 4K_page in a nand_page
 		ppa.g.pg = flashpg * spp->pgs_per_flashpg;
 		for (ch = 0; ch < spp->nchs; ch++) {
 			for (lun = 0; lun < spp->luns_per_ch; lun++) {

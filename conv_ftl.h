@@ -51,6 +51,10 @@ struct line_mgmt {
 };
 
 struct write_flow_control {
+	// @hk:
+	// `write_credits` is decreased every 4K_page write (@see `consume_write_credit()`)
+	// `credits_to_refill` is initiated with `pgs_per_line` (@see `init_write_flow_control()`)
+	// And re-set with `line->ipc` (@see `do_gc()`)
 	uint32_t write_credits;
 	uint32_t credits_to_refill;
 };

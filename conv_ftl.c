@@ -19,7 +19,7 @@ static bool should_gc(struct conv_ftl *conv_ftl)
 
 static inline bool should_gc_high(struct conv_ftl *conv_ftl)
 {
-	return (conv_ftl->lm.free_line_cnt <= conv_ftl->cp.gc_thres_lines_high);
+	return conv_ftl->lm.free_line_cnt <= conv_ftl->cp.gc_thres_lines_high;
 }
 
 static inline struct ppa get_maptbl_ent(struct conv_ftl *conv_ftl, uint64_t lpn)
@@ -164,7 +164,9 @@ static inline void check_addr(int a, int max)
 	NVMEV_ASSERT(a >= 0 && a < max);
 }
 
-// @hk get first free line
+// @hk:
+// Get first free line
+// Note that two funcs `list_first_entry_or_null()` and `list_del_init()` is built-in doubly-linked list func
 static struct line *get_next_free_line(struct conv_ftl *conv_ftl)
 {
 	struct line_mgmt *lm = &conv_ftl->lm;
@@ -181,12 +183,13 @@ static struct line *get_next_free_line(struct conv_ftl *conv_ftl)
 	return curline;
 }
 
-// @hk
-// Returns current WPs for RUH in FTL
+// @hk:
+// Returns current WP for RUH in FTL
 static struct write_pointer *__get_wp(struct conv_ftl *ftl, uint16_t ruh_id, uint32_t io_type)
 {
 	if (io_type == USER_IO) {
-		// @hk return &ftl->wp;
+		// @hk:
+		// return &ftl->wp;
 		return &ftl->wps[ruh_id];
 	} else if (io_type == GC_IO) {
 		// @hk-TODO:
@@ -200,6 +203,8 @@ static struct write_pointer *__get_wp(struct conv_ftl *ftl, uint16_t ruh_id, uin
 }
 
 // @hk
+// Actual implementation of func `prepare_write_pointer()`
+// Link free line to WP's curline for RUH in FTL
 static void prepare_an_write_pointer(struct conv_ftl *conv_ftl, uint16_t ruh_id, uint32_t io_type) {
 	struct write_pointer *wp = __get_wp(conv_ftl, ruh_id, io_type);
 	struct line *curline = get_next_free_line(conv_ftl);
@@ -207,7 +212,7 @@ static void prepare_an_write_pointer(struct conv_ftl *conv_ftl, uint16_t ruh_id,
 	NVMEV_ASSERT(wp);
 	NVMEV_ASSERT(curline);
 
-	// wp->curline is always our next-to-write super-block
+	/* wp->curline is always our next-to-write super-block */
 	*wp = (struct write_pointer){
 		.curline = curline,
 		.ch = 0,
@@ -219,13 +224,12 @@ static void prepare_an_write_pointer(struct conv_ftl *conv_ftl, uint16_t ruh_id,
 }
 
 // @hk
-// Allocate free line and initiate values to WPs
+// Allocate kernel memory for WPs array space & link free lines to all WPs
+// Actual linking is done in func `prepare_an_write_pointer()`
 // Note that this func is used in init process only
 static void prepare_write_pointer(struct conv_ftl *conv_ftl, uint32_t io_type)
 {
 	if (io_type == USER_IO) {
-		// @hk
-		// KMAlloc for WP array
 		// @hk-TODO:
 		// Assume that the total RUH count equals 8
 		// Refactor this to be configurable via macro
@@ -239,19 +243,20 @@ static void prepare_write_pointer(struct conv_ftl *conv_ftl, uint32_t io_type)
 	}
 }
 
+// @hk
+// `advance_write_pointer()` func moves next page to be written
 static void advance_write_pointer(struct conv_ftl *conv_ftl, uint16_t ruh_id, uint32_t io_type)
 {
 	struct ssdparams *spp = &conv_ftl->ssd->sp;
 	struct line_mgmt *lm = &conv_ftl->lm;
 	struct write_pointer *wpp = __get_wp(conv_ftl, ruh_id, io_type);
 
-	// NVMEV_DEBUG_VERBOSE("current wpp: ch:%d, lun:%d, pl:%d, blk:%d, pg:%d\n",
-	NVMEV_INFO("current wpp: ftl: %p, ch:%d, lun:%d, pl:%d, blk:%d, pg:%d\n", conv_ftl,
+	NVMEV_DEBUG_VERBOSE("current wpp: ch:%d, lun:%d, pl:%d, blk:%d, pg:%d\n",
 			wpp->ch, wpp->lun, wpp->pl, wpp->blk, wpp->pg);
 
 	check_addr(wpp->pg, spp->pgs_per_blk);
 	wpp->pg++;
-	// spp->pgs_per_oneshotpg == 0
+	// @hk spp->pgs_per_oneshotpg == 0
 	if ((wpp->pg % spp->pgs_per_oneshotpg) != 0)
 		goto out;
 
@@ -305,7 +310,6 @@ static void advance_write_pointer(struct conv_ftl *conv_ftl, uint16_t ruh_id, ui
 	/* TODO: assume # of pl_per_lun is 1, fix later */
 	NVMEV_ASSERT(wpp->pl == 0);
 out:
-	NVMEV_INFO("changed wpp: ftl: %p, ch:%d, lun:%d, pl:%d, blk:%d, pg:%d (curline %d)\n", conv_ftl, wpp->ch, wpp->lun, wpp->pl, wpp->blk, wpp->pg, wpp->curline->id);
 	NVMEV_DEBUG_VERBOSE("advanced wpp: ch:%d, lun:%d, pl:%d, blk:%d, pg:%d (curline %d)\n",
 			wpp->ch, wpp->lun, wpp->pl, wpp->blk, wpp->pg, wpp->curline->id);
 }
@@ -317,8 +321,7 @@ static struct ppa get_new_page(struct conv_ftl *conv_ftl, uint16_t ruh_id, uint3
 	struct ppa ppa;
 	struct write_pointer *wp = __get_wp(conv_ftl, ruh_id, io_type);
 
-	// NVMEV_DEBUG_VERBOSE("get_new_page: ch:%d, lun:%d, pl:%d, blk:%d, pg:%d (curline %d)\n",
-	NVMEV_INFO("get_new_page: ftl: %p, ch:%d, lun:%d, pl:%d, blk:%d, pg:%d (curline %d)\n", conv_ftl,
+	NVMEV_DEBUG_VERBOSE("get_new_page: ch:%d, lun:%d, pl:%d, blk:%d, pg:%d (curline %d)\n",
 			wp->ch, wp->lun, wp->pl, wp->blk, wp->pg, wp->curline->id);
 
 	ppa.ppa = 0;
@@ -430,7 +433,7 @@ void conv_init_namespace(struct nvmev_ns *ns, uint32_t id, uint64_t size, void *
 		conv_init_ftl(&conv_ftls[i], &cpp, ssd);
 	}
 
-	/* PCIe, Write buffer are shared by all instances (aka. partitions, FTLs)*/
+	/* PCIe, Write buffer are shared by all instances (partitions, FTLs)*/
 	for (i = 1; i < nr_parts; i++) {
 		kfree(conv_ftls[i].ssd->pcie->perf_model);
 		kfree(conv_ftls[i].ssd->pcie);
@@ -537,20 +540,22 @@ static void mark_page_invalid(struct conv_ftl *conv_ftl, struct ppa *ppa)
 
 	/* update corresponding block status */
 	blk = get_blk(conv_ftl->ssd, ppa);
-	NVMEV_ASSERT(0 <= blk->ipc && blk->ipc < spp->pgs_per_blk);
-	blk->ipc++; // Increase invalid count
-	NVMEV_ASSERT(0 < blk->vpc && blk->vpc <= spp->pgs_per_blk);
-	blk->vpc--; // Decrease valid count
+	// @hk Increase invalid count
+	NVMEV_ASSERT(blk->ipc >= 0 && blk->ipc < spp->pgs_per_blk);
+	blk->ipc++;
+	// @hk Decrease valid count
+	NVMEV_ASSERT(blk->vpc > 0 && blk->vpc <= spp->pgs_per_blk);
+	blk->vpc--;
 
 	/* update corresponding line status */
 	line = get_line(conv_ftl, ppa);
-	NVMEV_ASSERT(0 <= line->ipc && line->ipc < spp->pgs_per_line);
+	NVMEV_ASSERT(line->ipc >= 0 && line->ipc < spp->pgs_per_line);
 	if (line->vpc == spp->pgs_per_line) {
 		NVMEV_ASSERT(line->ipc == 0);
 		was_full_line = true;
 	}
 	line->ipc++;
-	NVMEV_ASSERT(0 < line->vpc && line->vpc <= spp->pgs_per_line);
+	NVMEV_ASSERT(line->vpc > 0 && line->vpc <= spp->pgs_per_line);
 	/* Adjust the position of the victime line in the pq under over-writes */
 	if (line->pos) {
 		/* Note that line->vpc will be updated by this call */
@@ -577,7 +582,6 @@ static void mark_page_valid(struct conv_ftl *conv_ftl, struct ppa *ppa)
 
 	/* update page status */
 	pg = get_pg(conv_ftl->ssd, ppa);
-	//NVMEV_INFO("%d\n", pg->status);
 	NVMEV_ASSERT(pg->status == PG_FREE);
 	pg->status = PG_VALID;
 
@@ -640,8 +644,7 @@ static uint64_t gc_write_page(struct conv_ftl *conv_ftl, struct ppa *old_ppa)
 	uint64_t lpn = get_rmap_ent(conv_ftl, old_ppa);
 
 	NVMEV_ASSERT(valid_lpn(conv_ftl, lpn));
-	// @hk: RUH_ID(0) is just dummy param as GC_IO doesn't require that
-	// @see __get_wp()
+	// @hk: RUH_ID(0) is just dummy param as GC_IO doesn't require that (@see `__get_wp()`)
 	new_ppa = get_new_page(conv_ftl, 0, GC_IO);
 	/* update maptbl */
 	set_maptbl_ent(conv_ftl, lpn, &new_ppa);
@@ -651,8 +654,7 @@ static uint64_t gc_write_page(struct conv_ftl *conv_ftl, struct ppa *old_ppa)
 	mark_page_valid(conv_ftl, &new_ppa);
 
 	/* need to advance the write pointer here */
-	// @hk: RUH_ID(0) is just dummy param as GC_IO doesn't require that
-	// @see __get_wp()
+	// @hk: RUH_ID(0) is just dummy param as GC_IO doesn't require that (@see `__get_wp()`)
 	advance_write_pointer(conv_ftl, 0, GC_IO);
 
 	if (cpp->enable_gc_delay) {
@@ -791,7 +793,8 @@ static void mark_line_free(struct conv_ftl *conv_ftl, struct ppa *ppa)
 	lm->free_line_cnt++;
 }
 
-// @hk do GC here
+// @hk
+// Do GC here
 static int do_gc(struct conv_ftl *conv_ftl, bool force)
 {
 	struct line *victim_line = NULL;
@@ -857,8 +860,7 @@ static int do_gc(struct conv_ftl *conv_ftl, bool force)
 static void foreground_gc(struct conv_ftl *conv_ftl)
 {
 	if (should_gc_high(conv_ftl)) {
-		// NVMEV_DEBUG_VERBOSE("should_gc_high passed");
-		NVMEV_WARN("should_gc_high passed");
+		NVMEV_DEBUG_VERBOSE("should_gc_high passed");
 		/* perform GC here until !should_gc(conv_ftl) */
 		do_gc(conv_ftl, true);
 	}
@@ -975,8 +977,12 @@ static bool conv_write(struct nvmev_ns *ns, struct nvmev_request *req, struct nv
 	struct buffer *wbuf = conv_ftl->ssd->write_buffer;
 
 	struct nvme_command *cmd = req->cmd;
-	uint16_t ruh_id = (cmd->rw.dsmgmt) >> 16;
+
+	uint8_t dtype = (cmd->rw.control >> 4) & 0xF;  // Extract DTYPE (bits 5-8)
+	uint16_t dspec = (cmd->rw.dsmgmt) >> 16 & 0xFFFF; // Extract DSPEC (bits 16-31)
 	uint64_t lba = cmd->rw.slba;
+	NVMEV_DEBUG_VERBOSE("[fdp debug] secs_per_pg=%d, slba=%lld, nlb=%d, dtype=%02x, dspec=%04x, cmd->rw.control=%04x, cmd->rw.dsmgmt=%08x",
+		spp->secs_per_pg, lba, cmd->rw.length, dtype, ruh_id, cmd->rw.control, cmd->rw.dsmgmt);
 	uint64_t nr_lba = (cmd->rw.length + 1);
 	uint64_t start_lpn = lba / spp->secs_per_pg;
 	uint64_t end_lpn = (lba + nr_lba - 1) / spp->secs_per_pg;
@@ -996,11 +1002,11 @@ static bool conv_write(struct nvmev_ns *ns, struct nvmev_request *req, struct nv
 		.xfer_size = spp->pgsz * spp->pgs_per_oneshotpg,
 	};
 
-	// @hk NVMEV_DEBUG_VERBOSE("%s: start_lpn=%lld, len=%lld, end_lpn=%lld", __func__, start_lpn, nr_lba, end_lpn);
-	// @hk For -s 7, -z 65536:
-	// @hk Logical Page: 16 (4KiB per l-page)
-	// @hk LBA len: 128 (512byte per page)
-	NVMEV_INFO("%s: lba=%lld, start_lpn=%lld, len=%lld, end_lpn=%lld", __func__, lba, start_lpn, nr_lba, end_lpn);
+	// @hk
+	// For -s 7, -z 65536:
+	// Logical Page: 16 (4KiB per l-page)
+	// LBA len: 128 (512byte per page)
+	NVMEV_DEBUG("%s: start_lpn=%lld, len=%lld, end_lpn=%lld", __func__, start_lpn, nr_lba, end_lpn);
 	if ((end_lpn / nr_parts) >= spp->tt_pgs) {
 		NVMEV_ERROR("%s: lpn passed FTL range (start_lpn=%lld > tt_pgs=%ld)\n",
 				__func__, start_lpn, spp->tt_pgs);
@@ -1019,7 +1025,6 @@ static bool conv_write(struct nvmev_ns *ns, struct nvmev_request *req, struct nv
 	swr.stime = nsecs_latest;
 
 	for (lpn = start_lpn; lpn <= end_lpn; lpn++) {
-		NVMEV_INFO("----- BEGIN PROCESSING LPN -----");
 		uint64_t local_lpn;
 		uint64_t nsecs_completed = 0;
 		struct ppa ppa;
@@ -1037,19 +1042,16 @@ static bool conv_write(struct nvmev_ns *ns, struct nvmev_request *req, struct nv
 		}
 
 		/* new write */
-		// @hk-TODO get page for the write w/ RUH_ID
 		ppa = get_new_page(conv_ftl, ruh_id, USER_IO);
 		/* update maptbl */
 		set_maptbl_ent(conv_ftl, local_lpn, &ppa);
-		// @hk NVMEV_DEBUG("%s: got new ppa %lld, ", __func__, ppa2pgidx(conv_ftl, &ppa));
-		NVMEV_INFO("%s: got new ppa %lld, ", __func__, ppa2pgidx(conv_ftl, &ppa));
+		NVMEV_DEBUG("%s: got new ppa %lld, ", __func__, ppa2pgidx(conv_ftl, &ppa));
 		/* update rmap */
 		set_rmap_ent(conv_ftl, local_lpn, &ppa);
 
 		mark_page_valid(conv_ftl, &ppa);
 
 		/* need to advance the write pointer here */
-		// @hk advance wp: same as move wp
 		advance_write_pointer(conv_ftl, ruh_id, USER_IO);
 
 		/* Aggregate write io in flash page */
@@ -1066,7 +1068,6 @@ static bool conv_write(struct nvmev_ns *ns, struct nvmev_request *req, struct nv
 		// @hk reduce write credit & GC when write credit is 0
 		consume_write_credit(conv_ftl);
 		check_and_refill_write_credit(conv_ftl);
-		NVMEV_INFO("----- END PROCESSING LPN -----");
 	}
 
 	// @hk set completion time

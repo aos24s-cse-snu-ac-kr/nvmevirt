@@ -19,6 +19,7 @@ static bool should_gc(struct conv_ftl *conv_ftl)
 
 static inline bool should_gc_high(struct conv_ftl *conv_ftl)
 {
+	NVMEV_INFO("%s: lm.free_line_cnt(%u), cp.gc_thres_lines_high(%u)", __func__, conv_ftl->lm.free_line_cnt, conv_ftl->cp.gc_thres_lines_high);
 	return conv_ftl->lm.free_line_cnt <= conv_ftl->cp.gc_thres_lines_high;
 }
 
@@ -99,6 +100,7 @@ static void foreground_gc(struct conv_ftl *conv_ftl);
 static inline void check_and_refill_write_credit(struct conv_ftl *conv_ftl)
 {
 	struct write_flow_control *wfc = &(conv_ftl->wfc);
+	// NVMEV_INFO("%s: wfc->write_credits(%u)", __func__, wfc->write_credits);
 	if (wfc->write_credits <= 0) {
 		foreground_gc(conv_ftl);
 
@@ -403,8 +405,13 @@ static void conv_remove_ftl(struct conv_ftl *conv_ftl)
 static void conv_init_params(struct convparams *cpp)
 {
 	cpp->op_area_pcent = OP_AREA_PERCENT;
-	cpp->gc_thres_lines = 2; /* Need only two lines.(host write, gc)*/
-	cpp->gc_thres_lines_high = 2; /* Need only two lines.(host write, gc)*/
+	// @hk:
+	// Increase GC threshold to open line count * 2
+	// e.g. 16 for 8-RUH system
+	// cpp->gc_thres_lines = 2; /* Need only two lines.(host write, gc)*/
+	// cpp->gc_thres_lines_high = 2; /* Need only two lines.(host write, gc)*/
+	cpp->gc_thres_lines = 16; /* Need only two lines.(host write, gc)*/
+	cpp->gc_thres_lines_high = 16; /* Need only two lines.(host write, gc)*/
 	cpp->enable_gc_delay = 1;
 	cpp->pba_pcent = (int)((1 + cpp->op_area_pcent) * 100);
 }
@@ -809,6 +816,7 @@ static int do_gc(struct conv_ftl *conv_ftl, bool force)
 		    victim_line->ipc, victim_line->vpc, conv_ftl->lm.victim_line_cnt,
 		    conv_ftl->lm.full_line_cnt, conv_ftl->lm.free_line_cnt);
 
+	// @hk: ?reset refill credit
 	conv_ftl->wfc.credits_to_refill = victim_line->ipc;
 
 	/* copy back valid data */

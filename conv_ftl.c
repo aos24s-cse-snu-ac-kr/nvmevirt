@@ -351,6 +351,23 @@ static void remove_maptbl(struct conv_ftl *conv_ftl)
 	vfree(conv_ftl->maptbl);
 }
 
+static void init_units_written(struct conv_ftl *conv_ftl)
+{
+	int i;
+	// @hk:
+	// `2` is a hardcoded number indicating two enum `USER_IO`, `GC_IO`
+	// Initialize to `0` for fresh start
+	conv_ftl->units_written = vmalloc(sizeof(uint64_t) * 2);
+	for (i = 0; i < 2; i++) {
+		conv_ftl->rmap[i] = 0;
+	}
+}
+
+static void remove_units_written(struct conv_ftl *conv_ftl)
+{
+	vfree(conv_ftl->units_written);
+}
+
 static void init_rmap(struct conv_ftl *conv_ftl)
 {
 	int i;
@@ -380,6 +397,9 @@ static void conv_init_ftl(struct conv_ftl *conv_ftl, struct convparams *cpp, str
 	/* initialize rmap */
 	init_rmap(conv_ftl); // reverse mapping table (?)
 
+	/* initialize units_written */
+	init_units_written(conv_ftl);
+
 	/* initialize all the lines */
 	init_lines(conv_ftl);
 
@@ -399,6 +419,7 @@ static void conv_remove_ftl(struct conv_ftl *conv_ftl)
 {
 	remove_lines(conv_ftl);
 	remove_rmap(conv_ftl);
+	remove_units_written(conv_ftl);
 	remove_maptbl(conv_ftl);
 }
 

@@ -675,6 +675,13 @@ static uint64_t gc_write_page(struct conv_ftl *conv_ftl, struct ppa *old_ppa)
 	set_maptbl_ent(conv_ftl, lpn, &new_ppa);
 	/* update rmap */
 	set_rmap_ent(conv_ftl, lpn, &new_ppa);
+	/* update units_written */
+	// @hk-TODO:
+	// Note that the units_written is calc'd based on 4K page, Not NAND page size (maybe 32K)
+	// This should be corrected in the future
+	// @hk-TODO:
+	// Refactor to use macros for page size
+	conv_ftl->units_written[GC_IO] += KB(4);
 
 	mark_page_valid(conv_ftl, &new_ppa);
 
@@ -1081,6 +1088,13 @@ static bool conv_write(struct nvmev_ns *ns, struct nvmev_request *req, struct nv
 		NVMEV_DEBUG("%s: got new ppa %lld, ", __func__, ppa2pgidx(conv_ftl, &ppa));
 		/* update rmap */
 		set_rmap_ent(conv_ftl, local_lpn, &ppa);
+		/* update units_written */
+		// @hk-TODO:
+		// Note that the units_written is calc'd based on 4K page, Not NAND page size (maybe 32K)
+		// This should be corrected in the future
+		// @hk-TODO:
+		// Refactor to use macros for page size
+		conv_ftl->units_written[USER_IO] += KB(4);
 
 		mark_page_valid(conv_ftl, &ppa);
 

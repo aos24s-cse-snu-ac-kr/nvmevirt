@@ -900,6 +900,8 @@ static void foreground_gc(struct conv_ftl *conv_ftl)
 		NVMEV_DEBUG_VERBOSE("should_gc_high passed");
 		/* perform GC here until !should_gc(conv_ftl) */
 		do_gc(conv_ftl, true);
+		NVMEV_DEBUG_VERBOSE("GC result: Data Units Written(%llu), Physical Media Units Written(%llu)",
+			conv_ftl->units_written[USER_IO], conv_ftl->units_written[USER_IO] + conv_ftl->units_written[GC_IO])
 	}
 }
 

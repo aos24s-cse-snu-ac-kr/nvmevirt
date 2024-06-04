@@ -71,6 +71,10 @@ struct conv_ftl {
 	struct write_pointer gc_wp;
 	struct line_mgmt lm;
 	struct write_flow_control wfc;
+	// @hk: `units_written` array accumulates write bytes
+	// `units_written[USER_IO]`: Acc. user IO ("Data Units Written" of SMART / Health Information Log)
+	// `units_written[GC_IO]`: Acc. GC IO ("Data Units Written" + "Physical Media Units Written" of SMART Cloud Attributes Log Page)
+	uint64_t *units_written;
 };
 
 void conv_init_namespace(struct nvmev_ns *ns, uint32_t id, uint64_t size, void *mapped_addr,

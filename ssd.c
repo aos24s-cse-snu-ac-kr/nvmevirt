@@ -390,8 +390,13 @@ uint64_t ssd_advance_nand(struct ssd *ssd, struct nand_cmd *ncmd)
 		nand_stime = max(lun->next_lun_avail_time, cmd_stime);
 
 		if (ncmd->xfer_size == 4096) {
+            // @jy: 
+            // array-index-out-of-bounds
+            // index 3 is out of range for type 'int [3]'
 			nand_etime = nand_stime + spp->pg_4kb_rd_lat[cell];
 		} else {
+            // @jy: 
+            // same here
 			nand_etime = nand_stime + spp->pg_rd_lat[cell];
 		}
 

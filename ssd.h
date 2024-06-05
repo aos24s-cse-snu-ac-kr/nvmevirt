@@ -250,7 +250,10 @@ static inline struct nand_page *get_pg(struct ssd *ssd, struct ppa *ppa)
 static inline uint32_t get_cell(struct ssd *ssd, struct ppa *ppa)
 {
 	struct ssdparams *spp = &ssd->sp;
-	return (ppa->g.pg / spp->pgs_per_flashpg) % (spp->cell_mode + 1);
+    // @jy:
+    // MLC - MSB LSB, should mod by 2
+    // TLC - MSB CSB LSB, should mod by 3
+	return (ppa->g.pg / spp->pgs_per_flashpg) % (spp->cell_mode);
 }
 
 void ssd_init_params(struct ssdparams *spp, uint64_t capacity, uint32_t nparts);

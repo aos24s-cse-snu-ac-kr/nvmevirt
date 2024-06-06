@@ -63,6 +63,8 @@ enum {
 
 //junyupp FDP_PROTOTYPE add
 #elif (BASE_SSD == FDP_PROTOTYPE)
+#define FDP_NUM_RUH (8)
+
 #define NR_NAMESPACES 1
 
 #define NS_SSD_TYPE_0 SSD_TYPE_CONV

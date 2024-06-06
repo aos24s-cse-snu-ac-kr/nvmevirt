@@ -208,6 +208,10 @@ struct ssdparams {
 	unsigned long tt_luns; /* total # of LUNs in the SSD */
 
 	unsigned long long write_buffer_size;
+
+    // @jy:
+    // number of Reclaim Unit Handle
+    int ruhs; /* # of ruhs in fdp */
 };
 
 struct ssd {

@@ -156,6 +156,15 @@ void ssd_init_params(struct ssdparams *spp, uint64_t capacity, uint32_t nparts)
 	spp->tt_lines = spp->blks_per_lun;
 	/* TODO: to fix under multiplanes */ // lun size is super-block(line) size
 
+    // @jy:
+    // Number of FDP Reclaim Unit Handle
+#ifdef FDP_NUM_RUH
+    spp->ruhs = FDP_NUM_RUH;
+	NVMEV_INFO("# of FDP Reclaim Unit Handle=%u", spp->ruhs);
+#else
+    spp->ruhs = 1;
+#endif
+
 	check_params(spp);
 
 	total_size = (unsigned long)spp->tt_luns * spp->blks_per_lun * spp->pgs_per_blk *

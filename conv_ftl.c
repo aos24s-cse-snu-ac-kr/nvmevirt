@@ -232,10 +232,6 @@ static void prepare_an_write_pointer(struct conv_ftl *conv_ftl, uint16_t ruh_id,
 static void prepare_write_pointer(struct conv_ftl *conv_ftl, uint32_t io_type)
 {
 	if (io_type == USER_IO) {
-		// @hk-TODO:
-		// Assume that the total RUH count equals 8
-		// Refactor this to be configurable via macro
-		conv_ftl->wps = kmalloc(sizeof(struct write_pointer) * 8, GFP_KERNEL);
 		for (int i = 0; i < 8; i++) {
 			prepare_an_write_pointer(conv_ftl, i, io_type);
 		}
@@ -384,6 +380,19 @@ static void remove_rmap(struct conv_ftl *conv_ftl)
 	vfree(conv_ftl->rmap);
 }
 
+static void init_wps(struct conv_ftl *conv_ftl)
+{
+	// @hk-TODO:
+	// Assume that the total RUH count equals 8
+	// Refactor this to be configurable via macro
+	conv_ftl->wps = kmalloc(sizeof(struct write_pointer) * 8, GFP_KERNEL);
+}
+
+static void remove_wps(struct conv_ftl *conv_ftl)
+{
+	kfree(conv_ftl->wps);
+}
+
 static void conv_init_ftl(struct conv_ftl *conv_ftl, struct convparams *cpp, struct ssd *ssd)
 {
 	/*copy convparams*/
@@ -396,6 +405,9 @@ static void conv_init_ftl(struct conv_ftl *conv_ftl, struct convparams *cpp, str
 
 	/* initialize rmap */
 	init_rmap(conv_ftl); // reverse mapping table (?)
+
+	/* initialize wps */
+	init_wps(conv_ftl);
 
 	/* initialize units_written */
 	init_units_written(conv_ftl);
@@ -419,6 +431,7 @@ static void conv_remove_ftl(struct conv_ftl *conv_ftl)
 {
 	remove_lines(conv_ftl);
 	remove_rmap(conv_ftl);
+	remove_wps(conv_ftl);
 	remove_units_written(conv_ftl);
 	remove_maptbl(conv_ftl);
 }

@@ -19,7 +19,7 @@ static bool should_gc(struct conv_ftl *conv_ftl)
 
 static inline bool should_gc_high(struct conv_ftl *conv_ftl)
 {
-	NVMEV_INFO("%s: lm.free_line_cnt(%u), cp.gc_thres_lines_high(%u)", __func__, conv_ftl->lm.free_line_cnt, conv_ftl->cp.gc_thres_lines_high);
+	NVMEV_DEBUG_VERBOSE("%s: lm.free_line_cnt(%u), cp.gc_thres_lines_high(%u)", __func__, conv_ftl->lm.free_line_cnt, conv_ftl->cp.gc_thres_lines_high);
 	return conv_ftl->lm.free_line_cnt <= conv_ftl->cp.gc_thres_lines_high;
 }
 
@@ -100,7 +100,7 @@ static void foreground_gc(struct conv_ftl *conv_ftl);
 static inline void check_and_refill_write_credit(struct conv_ftl *conv_ftl)
 {
 	struct write_flow_control *wfc = &(conv_ftl->wfc);
-	// NVMEV_INFO("%s: wfc->write_credits(%u)", __func__, wfc->write_credits);
+	NVMEV_DEBUG_VERBOSE("%s: wfc->write_credits(%u)", __func__, wfc->write_credits);
 	if (wfc->write_credits <= 0) {
 		foreground_gc(conv_ftl);
 
@@ -355,7 +355,7 @@ static void init_units_written(struct conv_ftl *conv_ftl)
 	// Initialize to `0` for fresh start
 	conv_ftl->units_written = vmalloc(sizeof(uint64_t) * 2);
 	for (i = 0; i < 2; i++) {
-		conv_ftl->rmap[i] = 0;
+		conv_ftl->units_written[i] = 0;
 	}
 }
 

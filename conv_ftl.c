@@ -353,7 +353,7 @@ static void init_units_written(struct conv_ftl *conv_ftl)
 	// @hk:
 	// `2` is hardcoded number indicating the number of IO type enums (`USER_IO`, `GC_IO`)
 	// Initialize each `units_written` to `0` for fresh start
-	conv_ftl->units_written = vmalloc(sizeof(uint64_t) * 2);
+	conv_ftl->units_written = kmalloc(sizeof(uint64_t) * 2, GFP_KERNEL);
 	for (i = 0; i < 2; i++) {
 		conv_ftl->units_written[i] = 0;
 	}
@@ -361,7 +361,7 @@ static void init_units_written(struct conv_ftl *conv_ftl)
 
 static void remove_units_written(struct conv_ftl *conv_ftl)
 {
-	vfree(conv_ftl->units_written);
+	kfree(conv_ftl->units_written);
 }
 
 static void init_rmap(struct conv_ftl *conv_ftl)

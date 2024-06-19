@@ -19,7 +19,7 @@ static bool should_gc(struct conv_ftl *conv_ftl)
 
 static inline bool should_gc_high(struct conv_ftl *conv_ftl)
 {
-	NVMEV_DEBUG_VERBOSE("%s: lm.free_line_cnt(%u), cp.gc_thres_lines_high(%u)", __func__, conv_ftl->lm.free_line_cnt, conv_ftl->cp.gc_thres_lines_high);
+//	NVMEV_INFO("%s: lm.free_line_cnt(%u), cp.gc_thres_lines_high(%u)", __func__, conv_ftl->lm.free_line_cnt, conv_ftl->cp.gc_thres_lines_high);
 	return conv_ftl->lm.free_line_cnt <= conv_ftl->cp.gc_thres_lines_high;
 }
 
@@ -100,7 +100,7 @@ static void foreground_gc(struct conv_ftl *conv_ftl);
 static inline void check_and_refill_write_credit(struct conv_ftl *conv_ftl)
 {
 	struct write_flow_control *wfc = &(conv_ftl->wfc);
-	NVMEV_DEBUG_VERBOSE("%s: wfc->write_credits(%u)", __func__, wfc->write_credits);
+	// NVMEV_INFO("%s: wfc->write_credits(%u)", __func__, wfc->write_credits);
 	if (wfc->write_credits <= 0) {
 		foreground_gc(conv_ftl);
 
@@ -231,8 +231,16 @@ static void prepare_an_write_pointer(struct conv_ftl *conv_ftl, uint16_t ruh_id,
 // Note that this func is used in init process only
 static void prepare_write_pointer(struct conv_ftl *conv_ftl, uint32_t io_type)
 {
+	// @jy:
+	// Make WPs according to number of RUHs
+	struct ssdparams *spp = &conv_ftl->ssd->sp;
+	int ruhs = spp->ruhs;
 	if (io_type == USER_IO) {
-		for (int i = 0; i < 8; i++) {
+		// @hk-TODO:
+		// Assume that the total RUH count equals 8
+		// Refactor this to be configurable via macro
+		conv_ftl->wps = kmalloc(sizeof(struct write_pointer) * ruhs, GFP_KERNEL);
+		for (int i = 0; i < ruhs; i++) {
 			prepare_an_write_pointer(conv_ftl, i, io_type);
 		}
 	} else if (io_type == GC_IO) {
@@ -442,10 +450,16 @@ static void conv_init_params(struct convparams *cpp)
 	// @hk:
 	// Increase GC threshold to open line count * 2
 	// e.g. 16 for 8-RUH system
-	// cpp->gc_thres_lines = 2; /* Need only two lines.(host write, gc)*/
-	// cpp->gc_thres_lines_high = 2; /* Need only two lines.(host write, gc)*/
-	cpp->gc_thres_lines = 16; /* Need only two lines.(host write, gc)*/
-	cpp->gc_thres_lines_high = 16; /* Need only two lines.(host write, gc)*/
+	// @jy:
+	// When using FDP change the threshold according to number of RUHs
+#ifdef FDP_NUM_RUH
+	cpp->gc_thres_lines = FDP_NUM_RUH * 2; /* Need only two lines.(host write, gc)*/
+	cpp->gc_thres_lines_high = FDP_NUM_RUH * 2; /* Need only two lines.(host write, gc)*/
+#else
+	cpp->gc_thres_lines = 2; /* Need only two lines.(host write, gc)*/
+	cpp->gc_thres_lines_high = 2; /* Need only two lines.(host write, gc)*/
+#endif
+	NVMEV_INFO("gc_thres_lines_high=%u", cpp->gc_thres_lines_high );
 	cpp->enable_gc_delay = 1;
 	cpp->pba_pcent = (int)((1 + cpp->op_area_pcent) * 100);
 }
@@ -910,11 +924,14 @@ static int do_gc(struct conv_ftl *conv_ftl, bool force)
 static void foreground_gc(struct conv_ftl *conv_ftl)
 {
 	if (should_gc_high(conv_ftl)) {
-		NVMEV_DEBUG_VERBOSE("should_gc_high passed");
+		// NVMEV_INFO("should_gc_high passed");
 		/* perform GC here until !should_gc(conv_ftl) */
 		do_gc(conv_ftl, true);
-		NVMEV_DEBUG_VERBOSE("GC result: Data Units Written(%llu), Physical Media Units Written(%llu)",
-			conv_ftl->units_written[USER_IO], conv_ftl->units_written[USER_IO] + conv_ftl->units_written[GC_IO]);
+		// @jy:
+		// WAF logging
+		NVMEV_INFO("GC result: Data Units Written(%llu), Physical Media Units Written(%llu), WAF(*100)=%llu",
+                    conv_ftl->units_written[USER_IO], conv_ftl->units_written[USER_IO] + conv_ftl->units_written[GC_IO],
+                    ( ((conv_ftl->units_written[USER_IO] + conv_ftl->units_written[GC_IO])*100) / conv_ftl->units_written[USER_IO]));
 	}
 }
 
@@ -1035,8 +1052,8 @@ static bool conv_write(struct nvmev_ns *ns, struct nvmev_request *req, struct nv
 	uint8_t dtype = (cmd->rw.control >> 4) & 0xF;
 	// @jy: Extract DSPEC (bits 16-31)
 	uint16_t dspec = (cmd->rw.dsmgmt) >> 16 & 0xFFFF;
-	NVMEV_DEBUG_VERBOSE("[fdp debug] secs_per_pg=%d, slba=%lld, nlb=%d, dtype=%02x, dspec=%04x, cmd->rw.control=%04x, cmd->rw.dsmgmt=%08x",
-		spp->secs_per_pg, lba, cmd->rw.length, dtype, dspec, cmd->rw.control, cmd->rw.dsmgmt);
+	NVMEV_DEBUG_VERBOSE("[fdp debug] secs_per_pg=%d, slba=%lld, nlb=%d, dtype=%02x, dspec=%04x, cmd->rw.control=%04x, cmd->rw.dsmgmt=%08x",	spp->secs_per_pg, lba, cmd->rw.length, dtype, dspec, cmd->rw.control, cmd->rw.dsmgmt);
+	//NVMEV_INFO("[fdp debug] secs_per_pg=%d, slba=%lld, nlb=%d, dtype=%02x, dspec=%04x, cmd->rw.control=%04x, cmd->rw.dsmgmt=%08x",	spp->secs_per_pg, lba, cmd->rw.length, dtype, dspec, cmd->rw.control, cmd->rw.dsmgmt);
 
 	uint64_t nr_lba = (cmd->rw.length + 1);
 	uint64_t start_lpn = lba / spp->secs_per_pg;
@@ -1063,6 +1080,7 @@ static bool conv_write(struct nvmev_ns *ns, struct nvmev_request *req, struct nv
 	// LBA len: 128 (512byte per page)
 	NVMEV_DEBUG_VERBOSE("%s: start_lpn=%lld, len=%lld, end_lpn=%lld", __func__, start_lpn, nr_lba, end_lpn);
 	if ((end_lpn / nr_parts) >= spp->tt_pgs) {
+	NVMEV_ERROR("[fdp debug] secs_per_pg=%d, slba=%lld, nlb=%d, dtype=%02x, dspec=%04x, cmd->rw.control=%04x, cmd->rw.dsmgmt=%08x",	spp->secs_per_pg, lba, cmd->rw.length, dtype, dspec, cmd->rw.control, cmd->rw.dsmgmt);
 		NVMEV_ERROR("%s: lpn passed FTL range (start_lpn=%lld > tt_pgs=%ld)\n",
 				__func__, start_lpn, spp->tt_pgs);
 		return false;
@@ -1181,6 +1199,8 @@ bool conv_proc_nvme_io_cmd(struct nvmev_ns *ns, struct nvmev_request *req, struc
 		break;
 	case nvme_cmd_flush:
 		conv_flush(ns, req, ret);
+		break;
+	case 0x12:
 		break;
 	default:
 		NVMEV_ERROR("%s: command not implemented: %s (0x%x)\n", __func__,

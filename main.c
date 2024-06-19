@@ -597,6 +597,9 @@ static void __print_base_config(void)
 		break;
 	case WD_ZN540:
 		type = "WD ZN540 ZNS SSD";
+                break;
+	case FDP_PROTOTYPE:
+		type = "FDP SSD Prototype";
 		break;
 	}
 

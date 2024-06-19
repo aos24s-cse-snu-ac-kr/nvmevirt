@@ -2,13 +2,8 @@
 
 DIRNAME=/home/toor/nvmevirt
 
-<<<<<<< HEAD
 MEMMAP_START=7
 MEMMAP_SIZE=1
-=======
-MEMMAP_START=4
-MEMMAP_SIZE=4
->>>>>>> jy
 
 cd $DIRNAME
 make \

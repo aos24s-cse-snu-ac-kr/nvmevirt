@@ -156,6 +156,15 @@ void ssd_init_params(struct ssdparams *spp, uint64_t capacity, uint32_t nparts)
 	spp->tt_lines = spp->blks_per_lun;
 	/* TODO: to fix under multiplanes */ // lun size is super-block(line) size
 
+    // @jy:
+    // Number of FDP Reclaim Unit Handle
+#ifdef FDP_NUM_RUH
+    spp->ruhs = FDP_NUM_RUH;
+	NVMEV_INFO("# of FDP Reclaim Unit Handle=%u", spp->ruhs);
+#else
+    spp->ruhs = 1;
+#endif
+
 	check_params(spp);
 
 	total_size = (unsigned long)spp->tt_luns * spp->blks_per_lun * spp->pgs_per_blk *
@@ -394,8 +403,13 @@ uint64_t ssd_advance_nand(struct ssd *ssd, struct nand_cmd *ncmd)
 		nand_stime = max(lun->next_lun_avail_time, cmd_stime);
 
 		if (ncmd->xfer_size == 4096) {
+            // @jy: 
+            // array-index-out-of-bounds
+            // index 3 is out of range for type 'int [3]'
 			nand_etime = nand_stime + spp->pg_4kb_rd_lat[cell];
 		} else {
+            // @jy: 
+            // same here
 			nand_etime = nand_stime + spp->pg_rd_lat[cell];
 		}
 

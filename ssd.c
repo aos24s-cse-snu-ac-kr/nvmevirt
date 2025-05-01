@@ -68,6 +68,7 @@ void ssd_init_params(struct ssdparams *spp, uint64_t capacity, uint32_t nparts)
 	uint64_t blk_size, total_size;
 
 	spp->secsz = LBA_SIZE;
+	// @jy: pg here is Logical Page (LPN) not NAND page (16KB)
 	spp->secs_per_pg = 4096 / LBA_SIZE; // pg == 4KB
 	spp->pgsz = spp->secsz * spp->secs_per_pg;
 
@@ -151,18 +152,23 @@ void ssd_init_params(struct ssdparams *spp, uint64_t capacity, uint32_t nparts)
 
 	/* line is special, put it at the end */
 	spp->blks_per_line = spp->tt_luns; /* TODO: to fix under multiplanes */
+	// @jy: MULTIPLANE
+	//spp->blks_per_line = spp->tt_luns * spp->pls_per_lun; /* TODO: to fix under multiplanes */
 	spp->pgs_per_line = spp->blks_per_line * spp->pgs_per_blk;
 	spp->secs_per_line = spp->pgs_per_line * spp->secs_per_pg;
 	spp->tt_lines = spp->blks_per_lun;
 	/* TODO: to fix under multiplanes */ // lun size is super-block(line) size
 
     // @jy:
-    // Number of FDP Reclaim Unit Handle
-#ifdef FDP_NUM_RUH
+    // Number of FDP Reclaim Unit Handle & Reclaim Group
+#ifdef FDP_ENABLE
     spp->ruhs = FDP_NUM_RUH;
 	NVMEV_INFO("# of FDP Reclaim Unit Handle=%u", spp->ruhs);
+	spp->rgs = FDP_NUM_RG;
+	NVMEV_INFO("# of FDP Reclaim Group=%u", spp->rgs);
 #else
     spp->ruhs = 1;
+    spp->rgs = 1;
 #endif
 
 	check_params(spp);

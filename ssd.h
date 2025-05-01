@@ -212,6 +212,9 @@ struct ssdparams {
     // @jy:
     // number of Reclaim Unit Handle
     int ruhs; /* # of ruhs in fdp */
+	// @jy:
+	// number of Reclaim Group
+	int rgs; /* # of rgs in fdp */
 };
 
 struct ssd {

@@ -72,6 +72,12 @@ static inline int victim_line_cmp_pri(pqueue_pri_t next, pqueue_pri_t curr)
 
 static inline pqueue_pri_t victim_line_get_pri(void *a)
 {
+	// @jy-debug:
+	if (!a) {
+		NVMEV_ERROR("victim_line_get_pri: NULL pointer passed!");
+		return 0; // or some safe default
+	}
+
 	return ((struct line *)a)->vpc;
 }
 
@@ -92,7 +98,8 @@ static inline void victim_line_set_pos(void *a, size_t pos)
 
 static inline void consume_write_credit(struct conv_ftl *conv_ftl)
 {
-	conv_ftl->wfc.write_credits--;
+	// @jy: Decrease write credit for current RG/RUH
+	conv_ftl->wfc.write_credits[conv_ftl->cur_rgid][conv_ftl->cur_ruhid]--;
 }
 
 static void foreground_gc(struct conv_ftl *conv_ftl);
@@ -100,11 +107,18 @@ static void foreground_gc(struct conv_ftl *conv_ftl);
 static inline void check_and_refill_write_credit(struct conv_ftl *conv_ftl)
 {
 	struct write_flow_control *wfc = &(conv_ftl->wfc);
+	uint8_t rg = conv_ftl->cur_rgid;
+	uint16_t ruh = conv_ftl->cur_ruhid;
 	// NVMEV_INFO("%s: wfc->write_credits(%u)", __func__, wfc->write_credits);
-	if (wfc->write_credits <= 0) {
-		foreground_gc(conv_ftl);
 
-		wfc->write_credits += wfc->credits_to_refill;
+	// @jy: Check and refill write credits per RG/RUH
+	if (wfc->write_credits[rg][ruh] <= 0) {
+		// @jy-debug:
+		// NVMEV_INFO("[jy-debug] RG:%u RUH:%u -> credit zero (%u)", rg, ruh, wfc->write_credits[rg][ruh]);
+		foreground_gc(conv_ftl);
+		wfc->write_credits[rg][ruh] += wfc->credits_to_refill[rg][ruh];
+		// @jy-debug:
+		// NVMEV_INFO("[credit] RG:%u RUH:%u -> credits refilled to %u", rg, ruh, wfc->write_credits[rg][ruh]);
 	}
 }
 
@@ -122,9 +136,20 @@ static void init_lines(struct conv_ftl *conv_ftl)
 	INIT_LIST_HEAD(&lm->free_line_list);
 	INIT_LIST_HEAD(&lm->full_line_list);
 
-	lm->victim_line_pq = pqueue_init(spp->tt_lines, victim_line_cmp_pri, victim_line_get_pri,
-					 victim_line_set_pri, victim_line_get_pos,
-					 victim_line_set_pos);
+	lm->victim_line_pq = kmalloc(sizeof(pqueue_t *) * spp->rgs, GFP_KERNEL);
+	// @jy: Allocate and initialize a separate priority queue for each Reclaim Group (RG)
+	for (int rg = 0; rg < spp->rgs; rg++) {
+		// @jy-debug:
+		NVMEV_INFO("[jy-debug] Allocate and initialize a separate priority queue for RG %u", rg);
+
+	    lm->victim_line_pq[rg] = pqueue_init(spp->tt_lines, victim_line_cmp_pri, victim_line_get_pri,
+	                                         victim_line_set_pri, victim_line_get_pos,
+	                                         victim_line_set_pos);
+		// @jy-debug:
+		if (!lm->victim_line_pq[rg]) {
+			NVMEV_ERROR("PQ init failed for RG %d", rg);
+		}
+	}
 
 	lm->free_line_cnt = 0;
 	for (i = 0; i < lm->tt_lines; i++) {
@@ -148,8 +173,20 @@ static void init_lines(struct conv_ftl *conv_ftl)
 
 static void remove_lines(struct conv_ftl *conv_ftl)
 {
-	pqueue_free(conv_ftl->lm.victim_line_pq);
+	// @jy: Free each RG-specific victim queue
+	for (int rg = 0; rg < conv_ftl->ssd->sp.rgs; rg++) {
+	    pqueue_free(conv_ftl->lm.victim_line_pq[rg]);
+	}
+	kfree(conv_ftl->lm.victim_line_pq);
 	vfree(conv_ftl->lm.lines);
+
+	// @jy: Free memory allocated for RG/RUH credit tracking
+	for (int rg = 0; rg < conv_ftl->ssd->sp.rgs; rg++) {
+		kfree(conv_ftl->wfc.write_credits[rg]);
+		kfree(conv_ftl->wfc.credits_to_refill[rg]);
+	}
+	kfree(conv_ftl->wfc.write_credits);
+	kfree(conv_ftl->wfc.credits_to_refill);
 }
 
 static void init_write_flow_control(struct conv_ftl *conv_ftl)
@@ -157,8 +194,22 @@ static void init_write_flow_control(struct conv_ftl *conv_ftl)
 	struct write_flow_control *wfc = &(conv_ftl->wfc);
 	struct ssdparams *spp = &conv_ftl->ssd->sp;
 
-	wfc->write_credits = spp->pgs_per_line;
-	wfc->credits_to_refill = spp->pgs_per_line;
+	// @jy: Allocate 2D arrays for per-RG/RUH write credit tracking
+	wfc->write_credits = kmalloc(sizeof(uint32_t *) * spp->rgs, GFP_KERNEL);
+	wfc->credits_to_refill = kmalloc(sizeof(uint32_t *) * spp->rgs, GFP_KERNEL);
+	for (int rg = 0; rg < spp->rgs; rg++) {
+		wfc->write_credits[rg] = kmalloc(sizeof(uint32_t) * spp->ruhs, GFP_KERNEL);
+		wfc->credits_to_refill[rg] = kmalloc(sizeof(uint32_t) * spp->ruhs, GFP_KERNEL);
+		for (int ruh = 0; ruh < spp->ruhs; ruh++) {
+			// @jy: Initialize write credits per RG/RUH with pgs_per_line
+			wfc->write_credits[rg][ruh] = spp->pgs_per_line;
+			wfc->credits_to_refill[rg][ruh] = spp->pgs_per_line;
+
+			// @jy-debug:
+			NVMEV_INFO("[jy-debug] RG:%u RUH:%u -> write_credits=%u", rg, ruh, wfc->write_credits[rg][ruh]);
+			NVMEV_INFO("[jy-debug] RG:%u RUH:%u -> credits_to_refill=%u", rg, ruh, wfc->credits_to_refill[rg][ruh]);
+		}
+	}
 }
 
 static inline void check_addr(int a, int max)
@@ -182,22 +233,33 @@ static struct line *get_next_free_line(struct conv_ftl *conv_ftl)
 	list_del_init(&curline->entry);
 	lm->free_line_cnt--;
 	NVMEV_DEBUG("%s: free_line_cnt %d\n", __func__, lm->free_line_cnt);
+	// @jy-debug: next_free_line, free_line_cnt
+	// NVMEV_INFO("[jy-debug] %s: next_free_line %d, free_line_cnt %d\n", __func__, curline->id, lm->free_line_cnt);
+
 	return curline;
 }
 
 // @hk:
 // Returns current WP for RUH in FTL
-static struct write_pointer *__get_wp(struct conv_ftl *ftl, uint16_t ruh_id, uint32_t io_type)
+// @jy: RG added
+static struct write_pointer *__get_wp(struct conv_ftl *ftl, uint32_t io_type)
 {
+	uint8_t rg_id = ftl->cur_rgid;
+	uint16_t ruh_id = ftl->cur_ruhid;
+
 	if (io_type == USER_IO) {
 		// @hk:
 		// return &ftl->wp;
-		return &ftl->wps[ruh_id];
+		// @jy: include RG
+		//return &ftl->wps[ruh_id];
+		return &ftl->wps[rg_id][ruh_id];
 	} else if (io_type == GC_IO) {
 		// @hk-TODO:
 		// Use single GC write pointer for 'Initially Isolated' mode
 		// Change to array to support 'Persistently Isolated' mode
-		return &ftl->gc_wp;
+		// @jy: include RG
+		// return &ftl->gc_wp;
+		return &ftl->gc_wp[rg_id];
 	}
 
 	NVMEV_ASSERT(0);
@@ -207,9 +269,12 @@ static struct write_pointer *__get_wp(struct conv_ftl *ftl, uint16_t ruh_id, uin
 // @hk:
 // Actual implementation of func `prepare_write_pointer()`
 // Link free line to WP's curline for RUH in FTL
-static void prepare_an_write_pointer(struct conv_ftl *conv_ftl, uint16_t ruh_id, uint32_t io_type) {
-	struct write_pointer *wp = __get_wp(conv_ftl, ruh_id, io_type);
+// @jy: RG added
+static void prepare_an_write_pointer(struct conv_ftl *conv_ftl, uint32_t io_type) {
+	struct write_pointer *wp = __get_wp(conv_ftl, io_type);
 	struct line *curline = get_next_free_line(conv_ftl);
+	// @jy: Record which RG this line belongs to
+	curline->rgid = conv_ftl->cur_rgid;
 
 	NVMEV_ASSERT(wp);
 	NVMEV_ASSERT(curline);
@@ -232,33 +297,61 @@ static void prepare_an_write_pointer(struct conv_ftl *conv_ftl, uint16_t ruh_id,
 static void prepare_write_pointer(struct conv_ftl *conv_ftl, uint32_t io_type)
 {
 	// @jy:
-	// Make WPs according to number of RUHs
+	// Make WPs according to number of RUHs & RGs
 	struct ssdparams *spp = &conv_ftl->ssd->sp;
 	int ruhs = spp->ruhs;
+	int rgs = spp->rgs;
 	if (io_type == USER_IO) {
-		// @hk-TODO:
-		// Assume that the total RUH count equals 8
-		// Refactor this to be configurable via macro
-		conv_ftl->wps = kmalloc(sizeof(struct write_pointer) * ruhs, GFP_KERNEL);
-		for (int i = 0; i < ruhs; i++) {
-			prepare_an_write_pointer(conv_ftl, i, io_type);
+		// @jy: 2D array allocation for RG
+		// conv_ftl->wps = kmalloc(sizeof(struct write_pointer) * ruhs, GFP_KERNEL);
+		// for (int i = 0; i < ruhs; i++) {
+		// 	prepare_an_write_pointer(conv_ftl, i, io_type);
+		// }
+		conv_ftl->wps = kmalloc(sizeof(struct write_pointer *) * rgs, GFP_KERNEL);
+		for (int rg = 0; rg < rgs; rg++) {
+			conv_ftl->wps[rg] = kmalloc(sizeof(struct write_pointer) * ruhs, GFP_KERNEL);
+			conv_ftl->cur_rgid = rg;  // temporarily set for init
+			for (int ruh = 0; ruh < ruhs; ruh++) {
+				conv_ftl->cur_ruhid = ruh;  // temporarily set for init
+				prepare_an_write_pointer(conv_ftl, io_type);
+			}
 		}
 	} else if (io_type == GC_IO) {
 		// @hk: Use '0' for dummy param (not used in __get_wp)
-		prepare_an_write_pointer(conv_ftl, 0, io_type);
+		// @jy: gc_wp should be seperate according RG
+		// @jy-TODO: seperate wps according to RUH for Persistently Isolated
+		// prepare_an_write_pointer(conv_ftl, 0, io_type);
+		conv_ftl->gc_wp = kmalloc(sizeof(struct write_pointer) * rgs, GFP_KERNEL);
+		for (int rg = 0; rg < rgs; rg++) {
+			conv_ftl->cur_rgid = rg;  // temporarily set for init
+			prepare_an_write_pointer(conv_ftl, io_type);
+		}
 	}
+	// @jy: restore initial value for rgid & ruhid
+	conv_ftl->cur_rgid = 0;
+	conv_ftl->cur_ruhid = 0;
 }
 
 // @hk:
 // `advance_write_pointer()` func moves next page to be written
-static void advance_write_pointer(struct conv_ftl *conv_ftl, uint16_t ruh_id, uint32_t io_type)
+// @jy: RG added
+static void advance_write_pointer(struct conv_ftl *conv_ftl, uint32_t io_type)
 {
 	struct ssdparams *spp = &conv_ftl->ssd->sp;
 	struct line_mgmt *lm = &conv_ftl->lm;
-	struct write_pointer *wpp = __get_wp(conv_ftl, ruh_id, io_type);
+	struct write_pointer *wpp = __get_wp(conv_ftl, io_type);
 
 	NVMEV_DEBUG_VERBOSE("current wpp: ch:%d, lun:%d, pl:%d, blk:%d, pg:%d\n",
-			wpp->ch, wpp->lun, wpp->pl, wpp->blk, wpp->pg);
+			wpp->ch, wpp->lun,  wpp->pl, wpp->blk, wpp->pg);
+
+	// @jy-debug
+	uint8_t rg_id = conv_ftl->cur_rgid;
+	uint16_t ruh_id = conv_ftl->cur_ruhid;
+	// if(rg_id==1) NVMEV_INFO("current wpp: RG:%d, RUH:%d, ch:%d, lun:%d, pl:%d, blk:%d, pg:%d, curline->id=%u\n", rg_id, ruh_id, wpp->ch, wpp->lun, wpp->pl, wpp->blk, wpp->pg, wpp->curline->id);
+	if (!wpp->curline) {
+		NVMEV_ERROR("advance_write_pointer: curline is NULL");
+		return;
+	}
 
 	check_addr(wpp->pg, spp->pgs_per_blk);
 	wpp->pg++;
@@ -298,12 +391,23 @@ static void advance_write_pointer(struct conv_ftl *conv_ftl, uint16_t ruh_id, ui
 		NVMEV_ASSERT(wpp->curline->vpc >= 0 && wpp->curline->vpc < spp->pgs_per_line);
 		/* there must be some invalid pages in this line */
 		NVMEV_ASSERT(wpp->curline->ipc > 0);
-		pqueue_insert(lm->victim_line_pq, wpp->curline);
+
+		// @jy-debug: wpp->curline->vpc != spp->pgs_per_line
+		// NVMEV_INFO("[jy-debug] line is moved to victim list. wpp->curline->vpc != spp->pgs_per_line (rg=%u, wpp->curline->id=%u)", conv_ftl->cur_rgid, wpp->curline->id);
+
+		// @jy: Insert into RG-specific victim queue
+		// pqueue_insert(lm->victim_line_pq[conv_ftl->cur_rgid], wpp->curline);
+		pqueue_insert(lm->victim_line_pq[wpp->curline->rgid], wpp->curline);
+		// NVMEV_INFO("[jy-debug] advance_write_pointer -> pqueue_insert rg=%u, curline_id=%d, pos=%zu", conv_ftl->cur_rgid, wpp->curline->id, wpp->curline->pos);
+		// NVMEV_INFO("[jy-debug] advance_write_pointer -> pqueue_insert wpp->curline->rgid=%u, curline_id=%d, pos=%zu", wpp->curline->rgid, wpp->curline->id, wpp->curline->pos);
 		lm->victim_line_cnt++;
 	}
 	/* current line is used up, pick another empty line */
 	check_addr(wpp->blk, spp->blks_per_pl);
 	wpp->curline = get_next_free_line(conv_ftl);
+	// NVMEV_INFO("[jy-debug] get_next_free_line (rg=%u, ruh=%u, wpp->curline->id=%u, pos=%zu(should be 0))", conv_ftl->cur_rgid, conv_ftl->cur_ruhid, wpp->curline->id, wpp->curline->pos);
+
+	wpp->curline->rgid = conv_ftl->cur_rgid;  // @jy: Set RGID for the line
 	NVMEV_DEBUG_VERBOSE("wpp: got new clean line %d\n", wpp->curline->id);
 
 	wpp->blk = wpp->curline->id;
@@ -322,10 +426,10 @@ out:
 
 // @hk:
 // func `get_new_page` actually is "converting" from WP to PPA.
-static struct ppa get_new_page(struct conv_ftl *conv_ftl, uint16_t ruh_id, uint32_t io_type)
+static struct ppa get_new_page(struct conv_ftl *conv_ftl, uint32_t io_type)
 {
 	struct ppa ppa;
-	struct write_pointer *wp = __get_wp(conv_ftl, ruh_id, io_type);
+	struct write_pointer *wp = __get_wp(conv_ftl, io_type);
 
 	ppa.ppa = 0;
 	ppa.g.ch = wp->ch;
@@ -436,10 +540,14 @@ static void conv_init_params(struct convparams *cpp)
 	// cpp->gc_thres_lines = 2; /* Need only two lines.(host write, gc)*/
 	// cpp->gc_thres_lines_high = 2; /* Need only two lines.(host write, gc)*/
 	// @jy:
-	// When using FDP change the threshold according to number of RUHs
-#ifdef FDP_NUM_RUH
-	cpp->gc_thres_lines = FDP_NUM_RUH * 2; /* Need only two lines.(host write, gc)*/
-	cpp->gc_thres_lines_high = FDP_NUM_RUH * 2; /* Need only two lines.(host write, gc)*/
+	// When using FDP change the threshold according to number of RUHs & RGs
+#ifdef FDP_ENABLE
+	// cpp->gc_thres_lines =  FDP_NUM_RUH * FDP_NUM_RG * 2;
+	// cpp->gc_thres_lines_high = FDP_NUM_RUH * FDP_NUM_RG * 2;
+
+	// @jy: to make same condition
+	cpp->gc_thres_lines =  32;
+	cpp->gc_thres_lines_high = 32;
 #else
 	cpp->gc_thres_lines = 2; /* Need only two lines.(host write, gc)*/
 	cpp->gc_thres_lines_high = 2; /* Need only two lines.(host write, gc)*/
@@ -587,25 +695,38 @@ static void mark_page_invalid(struct conv_ftl *conv_ftl, struct ppa *ppa)
 	/* update corresponding line status */
 	line = get_line(conv_ftl, ppa);
 	NVMEV_ASSERT(line->ipc >= 0 && line->ipc < spp->pgs_per_line);
+
+	// @jy: when invalid page is first made in a full line
 	if (line->vpc == spp->pgs_per_line) {
 		NVMEV_ASSERT(line->ipc == 0);
 		was_full_line = true;
 	}
 	line->ipc++;
-	NVMEV_ASSERT(line->vpc > 0 && line->vpc <= spp->pgs_per_line);
+	// NVMEV_ASSERT(line->vpc > 0 && line->vpc <= spp->pgs_per_line);
 	/* Adjust the position of the victime line in the pq under over-writes */
 	if (line->pos) {
+		// NVMEV_INFO("[jy-debug] mark_page_invalid start -> pqueue_change_priority (rg=%u, ruh=%u, line->rgid=%d, line->id=%u, pos=%zu)", conv_ftl->cur_rgid, conv_ftl->cur_ruhid, line->rgid, line->id, line->pos);
+
 		/* Note that line->vpc will be updated by this call */
-		pqueue_change_priority(lm->victim_line_pq, line->vpc - 1, line);
+		// @jy: victim_line_get_pri is called here for more than two times
+		// pqueue_change_priority(lm->victim_line_pq[conv_ftl->cur_rgid], line->vpc - 1, line);
+		pqueue_change_priority(lm->victim_line_pq[line->rgid], line->vpc - 1, line);
+
+		// NVMEV_INFO("[jy-debug] mark_page_invalid finish -> pqueue_change_priority done rg=%u, ruh=%u, line->rgid=%d, line->id=%u, pos=%zu)", conv_ftl->cur_rgid, conv_ftl->cur_ruhid, line->rgid, line->id, line->pos);
 	} else {
 		line->vpc--;
 	}
 
 	if (was_full_line) {
+		// @jy-debug:
+		// NVMEV_INFO("[jy-debug] was_full_line, rg=%u id=%u", conv_ftl->cur_rgid, line->id);
+		// NVMEV_INFO("[jy-debug] was_full_line, line->rgid=%u id=%u", line->rgid, line->id);
+
 		/* move line: "full" -> "victim" */
 		list_del_init(&line->entry);
 		lm->full_line_cnt--;
-		pqueue_insert(lm->victim_line_pq, line);
+		// pqueue_insert(lm->victim_line_pq[conv_ftl->cur_rgid], line);
+		pqueue_insert(lm->victim_line_pq[line->rgid], line);
 		lm->victim_line_cnt++;
 	}
 }
@@ -682,7 +803,8 @@ static uint64_t gc_write_page(struct conv_ftl *conv_ftl, struct ppa *old_ppa)
 
 	NVMEV_ASSERT(valid_lpn(conv_ftl, lpn));
 	// @hk: RUH_ID(0) is just dummy param as GC_IO doesn't require that (@see `__get_wp()`)
-	new_ppa = get_new_page(conv_ftl, 0, GC_IO);
+	// @jy: gc needs to be done in the same reclaim group
+	new_ppa = get_new_page(conv_ftl, GC_IO);
 	/* update maptbl */
 	set_maptbl_ent(conv_ftl, lpn, &new_ppa);
 	/* update rmap */
@@ -699,7 +821,7 @@ static uint64_t gc_write_page(struct conv_ftl *conv_ftl, struct ppa *old_ppa)
 
 	/* need to advance the write pointer here */
 	// @hk: RUH_ID(0) is just dummy param as GC_IO doesn't require that (@see `__get_wp()`)
-	advance_write_pointer(conv_ftl, 0, GC_IO);
+	advance_write_pointer(conv_ftl, GC_IO);
 
 	if (cpp->enable_gc_delay) {
 		struct nand_cmd gcw = {
@@ -735,7 +857,13 @@ static struct line *select_victim_line(struct conv_ftl *conv_ftl, bool force)
 	struct line_mgmt *lm = &conv_ftl->lm;
 	struct line *victim_line = NULL;
 
-	victim_line = pqueue_peek(lm->victim_line_pq);
+	// @jy-debug: 'NVMeVirt: victim_line_get_pri: NULL pointer passed!' issue
+	if (!lm->victim_line_pq[conv_ftl->cur_rgid]) {
+		NVMEV_ERROR("[jy-debug] victim_line_pq[%d] is NULL", conv_ftl->cur_rgid);
+		return NULL;
+	}
+
+	victim_line = pqueue_peek(lm->victim_line_pq[conv_ftl->cur_rgid]);
 	if (!victim_line) {
 		return NULL;
 	}
@@ -744,7 +872,7 @@ static struct line *select_victim_line(struct conv_ftl *conv_ftl, bool force)
 		return NULL;
 	}
 
-	pqueue_pop(lm->victim_line_pq);
+	pqueue_pop(lm->victim_line_pq[conv_ftl->cur_rgid]);
 	victim_line->pos = 0;
 	lm->victim_line_cnt--;
 
@@ -753,6 +881,7 @@ static struct line *select_victim_line(struct conv_ftl *conv_ftl, bool force)
 }
 
 /* here ppa identifies the block we want to clean */
+// @jy: function not used
 static void clean_one_block(struct conv_ftl *conv_ftl, struct ppa *ppa)
 {
 	struct ssdparams *spp = &conv_ftl->ssd->sp;
@@ -803,6 +932,7 @@ static void clean_one_flashpg(struct conv_ftl *conv_ftl, struct ppa *ppa)
 		return;
 
 	// @hk: Calc delay
+	// @jy: Read first to copy the valid pages
 	if (cpp->enable_gc_delay) {
 		struct nand_cmd gcr = {
 			.type = GC_IO,
@@ -855,14 +985,22 @@ static int do_gc(struct conv_ftl *conv_ftl, bool force)
 	}
 
 	ppa.g.blk = victim_line->id;
-	NVMEV_DEBUG_VERBOSE("GC-ing line:%d,ipc=%d(%d),victim=%d,full=%d,free=%d\n", ppa.g.blk,
+	NVMEV_DEBUG_VERBOSE("GC-ing line:%d (RG=%u),ipc=%d(%d),victim=%d,full=%d,free=%d\n", ppa.g.blk,
+			victim_line->rgid,
 		    victim_line->ipc, victim_line->vpc, conv_ftl->lm.victim_line_cnt,
 		    conv_ftl->lm.full_line_cnt, conv_ftl->lm.free_line_cnt);
 
+	// @jy-debug:
+	// NVMEV_INFO("[GC] Start: RG=%u RUH=%u, victim_blk=%d, ipc=%d", conv_ftl->cur_rgid, conv_ftl->cur_ruhid, ppa.g.blk, victim_line->ipc);
+
 	// @hk: ?reset refill credit
-	conv_ftl->wfc.credits_to_refill = victim_line->ipc;
+	// @jy: Victim line's invalid page count is credits to refill
+	// @jy: Record reclaimed credits per RG/RUH
+	conv_ftl->wfc.credits_to_refill[conv_ftl->cur_rgid][conv_ftl->cur_ruhid] = victim_line->ipc;
 
 	/* copy back valid data */
+	// @jy: map lpn to new ppa(copy) & erase block, and delays time
+	// GC happens within line, erase happens within block
 	for (flashpg = 0; flashpg < spp->flashpgs_per_blk; flashpg++) {
 		int ch, lun;
 
@@ -914,9 +1052,10 @@ static void foreground_gc(struct conv_ftl *conv_ftl)
 		do_gc(conv_ftl, true);
 		// @jy:
 		// WAF logging
-		NVMEV_INFO("GC result: Data Units Written(%llu), Physical Media Units Written(%llu), WAF(*100)=%llu",
-                    conv_ftl->units_written[USER_IO], conv_ftl->units_written[USER_IO] + conv_ftl->units_written[GC_IO],
-                    ( ((conv_ftl->units_written[USER_IO] + conv_ftl->units_written[GC_IO])*100) / conv_ftl->units_written[USER_IO]));
+		NVMEV_INFO("[RG_%u/RUH_%u] GC result: Data Units Written(%llu), Physical Media Units Written(%llu), WAF(*100)=%llu",
+					conv_ftl->cur_rgid, conv_ftl->cur_ruhid,
+					conv_ftl->units_written[USER_IO], conv_ftl->units_written[USER_IO] + conv_ftl->units_written[GC_IO],
+					( ((conv_ftl->units_written[USER_IO] + conv_ftl->units_written[GC_IO])*100) / conv_ftl->units_written[USER_IO]));
 	}
 }
 
@@ -1040,6 +1179,28 @@ static bool conv_write(struct nvmev_ns *ns, struct nvmev_request *req, struct nv
 	NVMEV_DEBUG_VERBOSE("[fdp debug] secs_per_pg=%d, slba=%lld, nlb=%d, dtype=%02x, dspec=%04x, cmd->rw.control=%04x, cmd->rw.dsmgmt=%08x",	spp->secs_per_pg, lba, cmd->rw.length, dtype, dspec, cmd->rw.control, cmd->rw.dsmgmt);
 	//NVMEV_INFO("[fdp debug] secs_per_pg=%d, slba=%lld, nlb=%d, dtype=%02x, dspec=%04x, cmd->rw.control=%04x, cmd->rw.dsmgmt=%08x",	spp->secs_per_pg, lba, cmd->rw.length, dtype, dspec, cmd->rw.control, cmd->rw.dsmgmt);
 
+	// @jy: Extract RGID and RUHID from DSPEC field
+	// RGIF = ceil(log2(NRG)) = # of bits required to encode # of reclaim groups
+	uint8_t rgif_bits = 0;
+	uint16_t temp_rgs = spp->rgs - 1;  // Subtract 1 because log2(1) = 0
+
+	while (temp_rgs > 0) {
+		rgif_bits++;
+		temp_rgs >>= 1;
+	}
+
+	// RGID: highest `rgif_bits` in dspec (MSBs)
+	// RUHID: remaining lower bits
+	conv_ftl->cur_rgid = (dspec >> (16 - rgif_bits)) & ((1U << rgif_bits) - 1);
+	conv_ftl->cur_ruhid = dspec & ((1U << (16 - rgif_bits)) - 1);
+	// @jy-debug
+	// if(conv_ftl->cur_rgid == 1 && conv_ftl->cur_ruhid == 7) { // for RG=1 write NULL error after RG0 full write
+	// 	NVMEV_INFO("[fdp debug] RGID=%d, RUHID=%d, dtype=%02x, dspec=%04x, rgif_bits=%d, slba=%lld, nlb=%d", conv_ftl->cur_rgid, conv_ftl->cur_ruhid, dtype, dspec, rgif_bits, lba, cmd->rw.length);
+	// }
+	// NVMEV_INFO("[fdp debug] RGID=%d, RUHID=%d, dtype=%02x, dspec=%04x, rgif_bits=%d, slba=%lld, nlb=%d", conv_ftl->cur_rgid, conv_ftl->cur_ruhid, dtype, dspec, rgif_bits, lba, cmd->rw.length);
+
+	NVMEV_DEBUG_VERBOSE("[fdp debug] RGID=%d, RUHID=%d, dtype=%02x, dspec=%04x", conv_ftl->cur_rgid, conv_ftl->cur_ruhid, dtype, dspec);
+
 	uint64_t nr_lba = (cmd->rw.length + 1);
 	uint64_t start_lpn = lba / spp->secs_per_pg;
 	uint64_t end_lpn = (lba + nr_lba - 1) / spp->secs_per_pg;
@@ -1100,7 +1261,9 @@ static bool conv_write(struct nvmev_ns *ns, struct nvmev_request *req, struct nv
 		}
 
 		/* new write */
-		ppa = get_new_page(conv_ftl, dspec, USER_IO);
+		// @jy: RG
+		// ppa = get_new_page(conv_ftl, dspec, USER_IO);
+		ppa = get_new_page(conv_ftl, USER_IO);
 		/* update maptbl */
 		set_maptbl_ent(conv_ftl, local_lpn, &ppa);
 		NVMEV_DEBUG("%s: got new ppa %lld, ", __func__, ppa2pgidx(conv_ftl, &ppa));
@@ -1112,12 +1275,14 @@ static bool conv_write(struct nvmev_ns *ns, struct nvmev_request *req, struct nv
 		// This should be corrected in the future
 		// @hk-TODO:
 		// Refactor to use macros for page size
+		// @jy: page size (logical page not NAND page) is 4KB
 		conv_ftl->units_written[USER_IO] += KB(4);
 
 		mark_page_valid(conv_ftl, &ppa);
 
 		/* need to advance the write pointer here */
-		advance_write_pointer(conv_ftl, dspec, USER_IO);
+		// @jy: RG integrate, moved ruhid/rgid to conv_ftl struct
+		advance_write_pointer(conv_ftl, USER_IO);
 
 		/* Aggregate write io in flash page */
 		if (last_pg_in_wordline(conv_ftl, &ppa)) {
@@ -1131,6 +1296,7 @@ static bool conv_write(struct nvmev_ns *ns, struct nvmev_request *req, struct nv
 		}
 
 		// @hk: Reduce write credit & GC when write credit is 0
+		// @jy: why does it consume write credit everytime? even when there are enough lines?
 		consume_write_credit(conv_ftl);
 		check_and_refill_write_credit(conv_ftl);
 	}
@@ -1186,6 +1352,7 @@ bool conv_proc_nvme_io_cmd(struct nvmev_ns *ns, struct nvmev_request *req, struc
 		conv_flush(ns, req, ret);
 		break;
 	case 0x12:
+		// NVMEV_INFO("[jy-debug] io management command received");
 		break;
 	default:
 		NVMEV_ERROR("%s: command not implemented: %s (0x%x)\n", __func__,

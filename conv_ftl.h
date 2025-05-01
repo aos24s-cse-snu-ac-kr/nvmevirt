@@ -24,6 +24,7 @@ struct line {
 	struct list_head entry;
 	/* position in the priority queue for victim lines */
 	size_t pos;
+	uint8_t rgid; // @jy: RG this line belongs to (set in prepare_an_write_pointer)
 };
 
 /* wp: record next write addr */
@@ -41,7 +42,7 @@ struct line_mgmt {
 
 	/* free line list, we only need to maintain a list of blk numbers */
 	struct list_head free_line_list;
-	pqueue_t *victim_line_pq;
+	pqueue_t **victim_line_pq; // @jy: Array of victim line priority queues, one per RG
 	struct list_head full_line_list;
 
 	uint32_t tt_lines;
@@ -55,8 +56,9 @@ struct write_flow_control {
 	// `write_credits` is decreased every 4K_page write (@see `consume_write_credit()`)
 	// `credits_to_refill` is initiated with `pgs_per_line` (@see `init_write_flow_control()`)
 	// And re-set with `line->ipc` (@see `do_gc()`)
-	uint32_t write_credits;
-	uint32_t credits_to_refill;
+	// @jy: RG x RUH (2D array)
+	uint32_t **write_credits;
+	uint32_t **credits_to_refill;
 };
 
 struct conv_ftl {
@@ -67,14 +69,26 @@ struct conv_ftl {
 	uint64_t *rmap; /* reverse mapptbl, assume it's stored in OOB */
 	// @hk: Make write pointer to be array
 	// struct write_pointer wp;
-	struct write_pointer *wps;
-	struct write_pointer gc_wp;
+	// @jy: Make write pointer to be 2D array for RG and RUH
+	//struct write_pointer *wps;
+	struct write_pointer **wps;
+	// @jy-TODO: gc_wp should be array for RG (2D array when using Persistently Isolated RUH)
+	struct write_pointer *gc_wp;
 	struct line_mgmt lm;
 	struct write_flow_control wfc;
 	// @hk: `units_written` array accumulates write bytes
 	// `units_written[USER_IO]`: Acc. user IO ("Data Units Written" of SMART / Health Information Log)
 	// `units_written[GC_IO]`: Acc. GC IO ("Data Units Written" + "Physical Media Units Written" of SMART Cloud Attributes Log Page)
 	uint64_t *units_written;
+	// @jy:
+	// Current Reclaim Group ID (RGID)
+	// Represents the RG this FTL instance is currently operating on.
+	// Used in write path and GC logic to determine which group-level resources to access.
+	uint8_t cur_rgid;
+	// Current Reclaim Unit Handle ID (RUHID)
+	// Represents the RUH within the RG currently being processed.
+	// Required for write pointer selection, page allocation, and reclaim coordination.
+	uint16_t cur_ruhid;
 };
 
 void conv_init_namespace(struct nvmev_ns *ns, uint32_t id, uint64_t size, void *mapped_addr,
